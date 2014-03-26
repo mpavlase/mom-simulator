@@ -17,13 +17,25 @@
 from mom.Collectors.Collector import *
 from mom.HypervisorInterfaces.HypervisorInterface import *
 
-
 class GuestMemory(Collector):
     """
     This Collector uses hypervisor interface to collect guest memory statistics
     """
-    def getFields(self=None):
-        return self.hypervisor_iface.getStatsFields()
+
+    @staticmethod
+    def getConstants():
+        """
+        These keys are necessary for balloning rules, values are used only if
+        hypervisor isn't able to provide its own values.
+        """
+        return {'min_guest_free_percent': 0.2,
+                'max_balloon_change_percent': 0.05,
+                'min_balloon_change_percent': 0.0025}
+
+    def getFields(self):
+        fields = self.hypervisor_iface.getStatsFields()
+        fields.update(self.getConstants().keys())
+        return fields
 
     def getOptionalFields(self=None):
         return set(["swap_total", "swap_usage"])
@@ -34,6 +46,7 @@ class GuestMemory(Collector):
         self.logger = logging.getLogger('mom.Collectors.GuestMemory')
         self.hypervisor_iface.startVmMemoryStats(self.uuid)
         self.memstats_available = True
+        self.const_fiels = {}.fromkeys(self.getConstants().keys())
 
     def stats_error(self, msg):
         """
@@ -47,6 +60,9 @@ class GuestMemory(Collector):
     def collect(self):
         try:
             stat = self.hypervisor_iface.getVmMemoryStats(self.uuid)
+            constants = self._collect_const_fields()
+            stat.update(constants)
+            self.logger.debug('Using these constant fields: %s' % constants)
         except HypervisorInterfaceError, e:
             self.stats_error('getVmMemoryStats() error: %s' % e.message)
             # We don't raise a CollectionError here because a different

@@ -247,40 +247,63 @@ class libvirtInterface(HypervisorInterface):
                 'balloon_min': self._getGuaranteedMemory(domain) }
         return ret
 
-    def getVmCpuTuneInfo(self, uuid):
-        ret = {}
+    def getXMLQoSMetadata(self, uuid):
+        """XML definition of domain can contain also <metadata> element.
+        it is used as storage of QoS settings."""
         domain = self._getDomainFromUUID(uuid)
-
-        # Get the user selection for vcpuLimit from the metadata
-        metadataCpuLimit = None
         try:
-            metadataCpuLimit = domain.metadata(
+            metadata = domain.metadata(
                 libvirt.VIR_DOMAIN_METADATA_ELEMENT, _METADATA_VM_TUNE_URI, 0)
         except libvirt.libvirtError as e:
             if e.get_error_code() != libvirt.VIR_ERR_NO_DOMAIN_METADATA:
                 self.logger.error("Failed to retrieve QoS metadata")
+                return False
 
-        if metadataCpuLimit:
-            metadataCpuLimitXML = _domParseStr(metadataCpuLimit)
-            nodeList = \
-                metadataCpuLimitXML.getElementsByTagName('vcpuLimit')
-            ret['vcpu_user_limit'] = nodeList[0].childNodes[0].data
-        else:
-            ret['vcpu_user_limit'] = 100
+        metadataXML = _domParseStr(metadata)
+        return metadataXML
+
+    @staticmethod
+    def getXMLElementValue(xml, element):
+        nodeList = xml.getElementsByTagName(element)
+        return nodeList[0].childNodes[0].data
+
+    def getVmCpuTuneInfo(self, uuid):
+        # List of provided keys:
+        # vcpu_user_limit, vcpu_quota, vcpu_count, vcpu_period
+
+        # Default values
+        defaults = {
+            'vcpu_user_limit': 100,
+            'vcpu_quota': 0,
+            'vcpu_period': 0,
+        }
+        ret = {}
+        domain = self._getDomainFromUUID(uuid)
+        metadata_xml = self.getXMLQoSMetadata(uuid)
+
+        # Get the user selection for vcpuLimit from the metadata
+        key = 'vcpu_user_limit'
+        try:
+            ret[key] = \
+                self.getXMLElementValue(metadata_xml, 'vcpuLimit')
+        except IndexError:
+            ret[key] = defaults[key]
 
         # Retrieve the current cpu tuning params
         ret.update(domain.schedulerParameters())
 
-        if ret['vcpu_quota'] == None:
-            ret['vcpu_quota'] = 0
+        key = 'vcpu_quota'
+        if ret[key] == None:
+            ret[key] = defaults[key]
 
-        if ret['vcpu_period'] == None:
-            ret['vcpu_period'] = 0
+        key = 'vcpu_period'
+        if ret[key] == None:
+            ret[key] = defaults[key]
 
         # Get the number of vcpus
         vcpuCount = domain.vcpusFlags(libvirt.VIR_DOMAIN_VCPU_CURRENT)
         if vcpuCount != -1:
-            ret['vcpu_count'] =  vcpuCount
+            ret['vcpu_count'] = vcpuCount
         else:
             self.logger.error('Failed to get VM cpu count')
             return None

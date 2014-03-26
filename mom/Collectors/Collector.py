@@ -59,6 +59,47 @@ class Collector:
         """
         return set()
 
+    @staticmethod
+    def getConstants():
+        """
+        Some rules may contain constants (tresholds etc.), this method provide
+        these as dict. These values can be present in file with rules itself,
+        or can be read from XML definition of libirt domain from <qos> element
+        (inside <metadata>).
+        Return: dict of constants, that can be "injected" into rules.
+        """
+        return {}
+
+    def _collect_const_fields(self):
+        """
+        Values are used only if hypervisor isn't able to provide its own values.
+        """
+
+        # do not anything if collector doesn't provide any constants
+        if not self.const_fiels:
+            return {}
+
+        logger = logging.getLogger('mom.Collector._collect_const_fields')
+        ret_fields = {}
+        metadata_xml = self.hypervisor_iface.getXMLQoSMetadata(self.uuid)
+        hv_consts = self.getConstants()
+        for k, v in self.const_fiels.iteritems():
+            if v:
+                ret_fields[k] = v
+            else:
+                try:
+                    hv_field = self.hypervisor_iface.getXMLElementValue( \
+                        metadata_xml, k)
+                    self.const_fiels[k] = float(hv_field)
+                    logger.debug('Using default value %s for %s provided '\
+                                 'by XML of VM.' % (hv_consts[k], k))
+                except IndexError as e:
+                    logger.warning('Using default value %s for %s from '
+                                   'collector plugin.' % (hv_consts[k], k))
+                    self.const_fiels[k] = hv_consts[k]
+                ret_fields[k] = self.const_fiels[k]
+        return ret_fields
+
 def get_collectors(config_str, properties, global_config):
     """
     Initialize a set of new Collector instances for a Monitor.
