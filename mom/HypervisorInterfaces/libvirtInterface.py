@@ -310,6 +310,47 @@ class libvirtInterface(HypervisorInterface):
 
         return ret
 
+    @staticmethod
+    def _getIoLimisFromXML(xml, fields):
+        ret = {}
+        for item in fields:
+            try:
+                ret[lim] = self.getXMLElementValue(xml, item)
+            except IndexError:
+                pass
+        return ret
+
+
+    def getIoTunables(self, uuid):
+        domain = self._getDomainFromUUID(uuid)
+        xml = self.getXMLQoSMetadata(uuid)
+        ret = []
+
+        device_list = xml.getElementsByTagName('device')
+        # total is exclusive to read/write
+        limits = ('total_bytes_sec',
+                  'total_iops_sec',
+                  'read_bytes_sec',
+                  'read_iops_sec',
+                  'write_bytes_sec',
+                  'write_iops_sec')
+
+        for dev in device_list:
+            item = {}
+            if dev.attributes.has_key('name'):
+                item['name'] = dev.attributes['name'].value
+            if dev.attributes.has_key('path'):
+                item['path'] = dev.attributes['path'].value
+
+            dev_tune = dev.getElementsByTagName('maximum')[0]
+            item['maximum'] = self._getIoLimisFromXML(dev_tune, limits)
+
+            dev_tune = dev.getElementsByTagName('guaranteed')[0]
+            item['guaranteed'] = self._getIoLimisFromXML(dev_tune, limits)
+
+            ret.append(item)
+        return ret
+
     def setVmBalloonTarget(self, uuid, target):
         dom = self._getDomainFromUUID(uuid)
         if dom is not None:
