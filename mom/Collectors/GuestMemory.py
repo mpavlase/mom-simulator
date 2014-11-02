@@ -28,7 +28,7 @@ class GuestMemory(Collector):
         These keys are necessary for balloning rules, values are used only if
         hypervisor isn't able to provide its own values.
         """
-        return {'min_guest_free_percent': 0.2,
+        return {'min_guest_free_percent': 0.201,
                 'max_balloon_change_percent': 0.05,
                 'min_balloon_change_percent': 0.0025}
 
@@ -46,7 +46,7 @@ class GuestMemory(Collector):
         self.logger = logging.getLogger('mom.Collectors.GuestMemory')
         self.hypervisor_iface.startVmMemoryStats(self.uuid)
         self.memstats_available = True
-        self.const_fiels = {}.fromkeys(self.getConstants().keys())
+        self.const_fields = {}.fromkeys(self.getConstants().keys())
 
     def stats_error(self, msg):
         """

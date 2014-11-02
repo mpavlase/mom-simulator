@@ -70,34 +70,57 @@ class Collector:
         """
         return {}
 
+    def refreshConstants(self):
+        """
+        Sometimes we need to let collector reload values of constats. It can be
+        done automaticly just by clear their values.
+        """
+
+        # TODO: Vicked, vicked, Zoot!
+        try:
+            self.const_fields = {}.fromkeys(self.getConstants().keys())
+        except AttributeError:
+            """
+            const_fields are not used on current collector.
+            """
+            logger = logging.getLogger('mom.Collector.refreshConstants')
+            logger.info('Cleanup without any effect - collector does\'t '\
+                        'provide any constants.')
+
     def _collect_const_fields(self):
         """
         Values are used only if hypervisor isn't able to provide its own values.
         """
 
         # do not anything if collector doesn't provide any constants
-        if not self.const_fiels:
+        # TODO: Vicked, vicked, Zoot!
+        try:
+            if self.const_fields:
+                pass
+        except AttributeError:
             return {}
 
         logger = logging.getLogger('mom.Collector._collect_const_fields')
         ret_fields = {}
         metadata_xml = self.hypervisor_iface.getXMLQoSMetadata(self.uuid)
         hv_consts = self.getConstants()
-        for k, v in self.const_fiels.iteritems():
+        for k, v in self.const_fields.iteritems():
             if v:
+                #logger.info('%s = %s' % (k, v))
                 ret_fields[k] = v
             else:
                 try:
                     hv_field = self.hypervisor_iface.getXMLElementValue( \
                         metadata_xml, k)
-                    self.const_fiels[k] = float(hv_field)
+                    self.const_fields[k] = float(hv_field)
                     logger.debug('Using default value %s for %s provided '\
-                                 'by XML of VM.' % (hv_consts[k], k))
+                                 'by XML of VM.' % (self.const_fields[k], k))
                 except IndexError as e:
-                    logger.warning('Using default value %s for %s from '
-                                   'collector plugin.' % (hv_consts[k], k))
-                    self.const_fiels[k] = hv_consts[k]
-                ret_fields[k] = self.const_fiels[k]
+                    self.const_fields[k] = hv_consts[k]
+                    logger.warning('Using default value %s for %s from ' \
+                                   'collector plugin.' % \
+                                    (self.const_fields[k], k))
+                ret_fields[k] = self.const_fields[k]
         return ret_fields
 
 def get_collectors(config_str, properties, global_config):

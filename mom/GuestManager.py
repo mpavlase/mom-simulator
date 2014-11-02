@@ -132,3 +132,10 @@ class GuestManager(threading.Thread):
                     ret.append(name)
         self.guests_sem.release()
         return ret
+
+    def rpc_refresh_guests_consts(self):
+        self.guests_sem.acquire()
+        for (id, monitor) in self.guests.items():
+            if monitor.isReady():
+                monitor.refreshCollectorConsts()
+        self.guests_sem.release()

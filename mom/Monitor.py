@@ -145,6 +145,14 @@ class Monitor:
         ret._finalize()
         return ret
 
+    def refreshCollectorConsts(self):
+        """
+        Cleanup constants from all collectors to let them reload its again.
+        """
+        self.logger.info('refreshCollectorConsts in action!')
+        for c in self.collectors:
+            c.refreshConstants()
+
     def update_variables(self, variables):
         """
         Update the variables array to store any updates from an Entity
