@@ -25,7 +25,7 @@ class HostMonitor(Monitor, threading.Thread):
     """
     The Host Monitor thread collects and reports statistics about the host.
     """
-    def __init__(self, config):
+    def __init__(self, config, hypervisor_iface):
         threading.Thread.__init__(self, name="HostMonitor")
         Monitor.__init__(self, config, self.getName())
         self.setDaemon(True)
@@ -35,6 +35,8 @@ class HostMonitor(Monitor, threading.Thread):
         # Append monitor interval to properties because HostKSM needs it
         # to calculate ksmd cpu usage.
         self.properties['interval'] = self.interval
+        self.properties['hypervisor_iface'] = hypervisor_iface
+        #self.properties['config'] = self.config
         collector_list = self.config.get('host', 'collectors')
         self.collectors = Collector.get_collectors(collector_list,
                             self.properties, self.config)

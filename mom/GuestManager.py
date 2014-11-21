@@ -34,6 +34,7 @@ class GuestManager(threading.Thread):
         self.hypervisor_iface = hypervisor_iface
         self.logger = logging.getLogger('mom.GuestManager')
         self.guests = {}
+        self.last_data = {}
         self.guests_sem = threading.Semaphore()
         self.start()
 
@@ -98,13 +99,19 @@ class GuestManager(threading.Thread):
         Return: A dictionary of Entities, indexed by guest id
         """
         ret = {}
+        self.last_data = {}
         self.guests_sem.acquire()
         for (id, monitor) in self.guests.items():
             entity = monitor.interrogate()
+            self.last_data[id] = monitor.get_last_data()
             if entity is not None:
                 ret[id] = entity
         self.guests_sem.release()
+        self.logger.error('GuestManager.interrogate result: %s' % self.last_data)
         return ret
+
+    def get_last_data(self):
+        return self.last_data
 
     def run(self):
         try:

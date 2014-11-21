@@ -112,6 +112,12 @@ class Entity:
         """
         self.variables[name] = val
 
+    def GetVmName(self):
+        """
+        Get name of VM
+        """
+        return self.monitor.name
+
     def GetVar(self, name):
         """
         Get the value of a potential variable in this instance.

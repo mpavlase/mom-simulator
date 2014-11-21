@@ -62,7 +62,7 @@ class GuestMemory(Collector):
             stat = self.hypervisor_iface.getVmMemoryStats(self.uuid)
             constants = self._collect_const_fields()
             stat.update(constants)
-            self.logger.debug('Using these constant fields: %s' % constants)
+            #self.logger.debug('Using these constant fields: %s' % constants)
         except HypervisorInterfaceError, e:
             self.stats_error('getVmMemoryStats() error: %s' % e.message)
             # We don't raise a CollectionError here because a different

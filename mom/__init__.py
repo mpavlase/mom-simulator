@@ -24,8 +24,8 @@ class MOM:
         # Start threads
         self.logger.info("MOM starting")
         self.config.set('__int__', 'running', '1')
-        host_monitor = HostMonitor(self.config)
         hypervisor_iface = self.get_hypervisor_interface()
+        host_monitor = HostMonitor(self.config, hypervisor_iface)
         if not hypervisor_iface:
             self.shutdown()
         guest_manager = GuestManager(self.config, hypervisor_iface)

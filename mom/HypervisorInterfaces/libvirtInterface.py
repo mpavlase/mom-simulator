@@ -245,6 +245,7 @@ class libvirtInterface(HypervisorInterface):
             return None
         ret =  {'balloon_max': info[1], 'balloon_cur': info[2],
                 'balloon_min': self._getGuaranteedMemory(domain) }
+        self.logger.info('BALOON INFO: %s' % ret)
         return ret
 
     def getXMLQoSMetadata(self, uuid):

@@ -33,7 +33,7 @@ class Balloon:
             uuid = guest.Prop('uuid')
             name = guest.Prop('name')
             prev_target = guest.Stat('balloon_cur')
-            self.logger.info("Ballooning guest:%s from %s to %s", \
+            self.logger.warn("Ballooning guest: %s from %s to %s", \
                     name, prev_target, target)
             self.hypervisor_iface.setVmBalloonTarget(uuid, target)
 

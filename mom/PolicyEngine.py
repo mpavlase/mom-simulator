@@ -19,6 +19,7 @@ import time
 import logging
 import os
 from Policy.Policy import Policy, PolicyError
+from LivePlotter import Plotter
 
 class PolicyEngine(threading.Thread):
     """
@@ -36,6 +37,12 @@ class PolicyEngine(threading.Thread):
             'host_monitor': host_monitor,
             'guest_manager': guest_manager,
         }
+        self.plotter = Plotter([
+                'balloon_cur',  # Guest
+                'mem_unused',
+                'mem_free',     # Host
+                #'mem_available',
+                ])
 
         self.policy = Policy()
         self.load_policy()
@@ -111,9 +118,18 @@ class PolicyEngine(threading.Thread):
         into each configured Controller.
         """
         host = self.properties['host_monitor'].interrogate()
+        host_last_data = self.properties['host_monitor'].get_last_data()
         if host is None:
             return
         guest_list = self.properties['guest_manager'].interrogate().values()
+        guests_last_data = self.properties['guest_manager'].get_last_data()
+
+        guests_last_data.update({'host': host_last_data})
+        self.logger.info('Updated dataset for plot: %s' % guests_last_data)
+
+        self.plotter.set_data(guests_last_data)
+
+        self.plotter.plot()
 
         ret = self.policy.evaluate(host, guest_list)
         if ret is False:

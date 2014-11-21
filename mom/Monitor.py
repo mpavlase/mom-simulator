@@ -40,6 +40,7 @@ class Monitor:
         self.optional_fields = None
         self.collectors = []
         self.logger = logging.getLogger('mom.Monitor')
+        self.last_data = []
 
         plot_dir = config.get('__int__', 'plot-subdir')
         if plot_dir != '':
@@ -93,6 +94,7 @@ class Monitor:
                     self.logger.debug("Collector %s did not "
                                       "return any data", str(c))
                     continue
+                #self.logger.info('collected data from %s:\n%s' % (str(c), collected))
                 for (key, val) in collected.items():
                     if key not in data or data[key] is None:
                         data[key] = val
@@ -124,7 +126,13 @@ class Monitor:
         if self.plotter is not None:
             self.plotter.plot(data)
 
+        self.last_data = data
+
+        self.logger.info('ALL collected data:\n---------------------\n%s\n---------------------' % (data))
         return data
+
+    def get_last_data(self):
+        return self.last_data
 
     def interrogate(self):
         """
