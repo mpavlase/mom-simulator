@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#TODO: process multiple args to be able hilight several substrings
+
+# escape dangerous characters + slash because of usage inside sed
+#KW="$(printf '%q' $1 | sed 's/\//\\\//g')"
+KW="$@"
+# ;1      ... bold
+# 30+i    ... change foreground color
+# 40+i    ... change background color
+#    i    ... index in color table, see wiki:
+#             http://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+sed -u -r "s/($KW)/\x1b[41;1m\1\x1b[0m/g" |
+sed -u -r "s/(ERROR)/\x1b[31;1m\1\x1b[0m/g" |
+sed -u -r "s/(INFO)/\x1b[32;1m\1\x1b[0m/g" |
+sed -u -r "s/(DEBUG)/\x1b[34;1m\1\x1b[0m/g" |
+sed -u -r "s/(WARNING)/\x1b[33;1m\1\x1b[0m/g"
