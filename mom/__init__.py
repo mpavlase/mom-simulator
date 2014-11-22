@@ -8,6 +8,7 @@ from mom.LogUtils import *
 from mom.HostMonitor import HostMonitor
 from mom.GuestManager import GuestManager
 from mom.PolicyEngine import PolicyEngine
+from mom.LivePlotter import LivePlotter
 from mom.RPCServer import RPCServer
 from mom.MOMFuncs import MOMFuncs, EXPORTED_ATTRIBUTE
 
@@ -29,12 +30,18 @@ class MOM:
         if not hypervisor_iface:
             self.shutdown()
         guest_manager = GuestManager(self.config, hypervisor_iface)
+        live_plotter = LivePlotter(self.config, [
+            'balloon_cur',    # guest
+            'mem_unused',     # guest
+            'mem_free',       # host
+            'mem_available',  # guest
+        ])
         policy_engine = PolicyEngine(self.config, hypervisor_iface, host_monitor, \
-                                     guest_manager)
+                                     guest_manager, live_plotter)
 
         threads = { 'host_monitor': host_monitor,
-                         'guest_manager': guest_manager,
-                         'policy_engine': policy_engine }
+                    'guest_manager': guest_manager,
+                    'policy_engine': policy_engine }
         momFuncs = MOMFuncs(self.config, threads)
         self._setupAPI(momFuncs)
         rpc_server = RPCServer(self.config, momFuncs)
@@ -42,7 +49,12 @@ class MOM:
         interval = self.config.getint('main', 'main-loop-interval')
         while self.config.getint('__int__', 'running') == 1:
             time.sleep(interval)
-            if not self._threads_ok((host_monitor,guest_manager,policy_engine)):
+            if not self._threads_ok((
+                host_monitor,
+                guest_manager,
+                policy_engine,
+                live_plotter
+                )):
                 self.config.set('__int__', 'running', '0')
             # Check the RPC server separately from the other threads since it
             # can be disabled.
@@ -54,6 +66,7 @@ class MOM:
         self._wait_for_thread(policy_engine, 10)
         self._wait_for_thread(guest_manager, 5)
         self._wait_for_thread(host_monitor, 5)
+        self._wait_for_thread(live_plotter, 5)
         self.logger.info("MOM ending")
 
     def shutdown(self):

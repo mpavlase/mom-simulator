@@ -19,7 +19,6 @@ import time
 import logging
 import os
 from Policy.Policy import Policy, PolicyError
-from LivePlotter import Plotter
 
 class PolicyEngine(threading.Thread):
     """
@@ -27,7 +26,8 @@ class PolicyEngine(threading.Thread):
     sampling host and guest data, evaluating the policy and reporting the
     results to all enabled Controller plugins.
     """
-    def __init__(self, config, hypervisor_iface, host_monitor, guest_manager):
+    def __init__(self, config, hypervisor_iface, host_monitor, guest_manager,
+                 live_plotter=None):
         threading.Thread.__init__(self, name="PolicyEngine")
         self.setDaemon(True)
         self.config = config
@@ -37,12 +37,8 @@ class PolicyEngine(threading.Thread):
             'host_monitor': host_monitor,
             'guest_manager': guest_manager,
         }
-        self.plotter = Plotter([
-                'balloon_cur',  # Guest
-                'mem_unused',
-                'mem_free',     # Host
-                #'mem_available',
-                ])
+
+        self.plotter = live_plotter
 
         self.policy = Policy()
         self.load_policy()
@@ -124,12 +120,12 @@ class PolicyEngine(threading.Thread):
         guest_list = self.properties['guest_manager'].interrogate().values()
         guests_last_data = self.properties['guest_manager'].get_last_data()
 
-        guests_last_data.update({'host': host_last_data})
-        self.logger.info('Updated dataset for plot: %s' % guests_last_data)
+        if self.plotter:
+            guests_last_data.update({'host': host_last_data})
+            self.logger.info('Updated dataset for LivePlotter: %s' % guests_last_data)
 
-        self.plotter.set_data(guests_last_data)
-
-        self.plotter.plot()
+            #self.plotter.set_data(guests_last_data)
+            #self.plotter.plot()
 
         ret = self.policy.evaluate(host, guest_list)
         if ret is False:
