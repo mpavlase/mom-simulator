@@ -8,7 +8,7 @@ from mom.LogUtils import *
 from mom.HostMonitor import HostMonitor
 from mom.GuestManager import GuestManager
 from mom.PolicyEngine import PolicyEngine
-from mom.LivePlotter import LivePlotter
+from mom.PlotLib import Plot
 from mom.RPCServer import RPCServer
 from mom.MOMFuncs import MOMFuncs, EXPORTED_ATTRIBUTE
 
@@ -30,7 +30,7 @@ class MOM:
         if not hypervisor_iface:
             self.shutdown()
         guest_manager = GuestManager(self.config, hypervisor_iface)
-        live_plotter = LivePlotter(self.config, [
+        live_plotter = Plot([
             'balloon_cur',    # guest
             'mem_unused',     # guest
             'mem_free',       # host
@@ -53,7 +53,7 @@ class MOM:
                 host_monitor,
                 guest_manager,
                 policy_engine,
-                live_plotter
+                #live_plotter
                 )):
                 self.config.set('__int__', 'running', '0')
             # Check the RPC server separately from the other threads since it
@@ -66,7 +66,7 @@ class MOM:
         self._wait_for_thread(policy_engine, 10)
         self._wait_for_thread(guest_manager, 5)
         self._wait_for_thread(host_monitor, 5)
-        self._wait_for_thread(live_plotter, 5)
+        #self._wait_for_thread(live_plotter, 5)
         self.logger.info("MOM ending")
 
     def shutdown(self):
