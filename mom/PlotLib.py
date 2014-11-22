@@ -61,7 +61,7 @@ class Plot(object):
         t.daemon = True
 
         # detach plot window to separate thread
-        t.start()
+        #t.start()
 
     def show_window(self):
         """
@@ -147,7 +147,7 @@ class Plot(object):
                 self.data[guest][field]['data'].append(value)
         self._refresh_plot()
         pl.autoscale(tight=True)
-        self.figure.canvas.draw_idle()
+        self.figure.canvas.draw()
 
 def run():
     p = Plot(['balloon_cur', 'mem_free'])
@@ -167,7 +167,7 @@ def run():
     p.set_data({'host': {'mem_free': 1755836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4240164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
     #p.plot()
 
-    #p.show_window()
+    p.show_window()
 
 if __name__ == '__main__':
     run()
