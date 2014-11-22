@@ -37,42 +37,37 @@ class Plot(object):
         self.data = {}
         self.fields = fields
         self.logger = logging.getLogger('mom.Plot')
-        #pl.ioff() # disable interactivity on plot in window
+        pl.ion() # disable interactivity on plot in window
         self.figure = pl.figure()
         self.subplots = {}
         self.subplots_width = 2
 
-        win = gtk.Window()
-        win.connect("destroy", lambda x: gtk.main_quit())
-        win.set_default_size(400,300)
-        win.set_title("MoM live plot")
+        #  win = gtk.Window()
+        #  win.connect("destroy", lambda x: gtk.main_quit())
+        #  win.set_default_size(400,300)
+        #  win.set_title("MoM live plot")
 
-        vbox = gtk.VBox()
-        win.add(vbox)
-        # ----------------------------
-        canvas = FigureCanvas(self.figure)  # a gtk.DrawingArea
-        vbox.pack_start(canvas)
-        toolbar = NavigationToolbar(canvas, win)
-        vbox.pack_start(toolbar, False, False)
-        win.show_all()
+        #  vbox = gtk.VBox()
+        #  win.add(vbox)
+        #  # ----------------------------
+        #  canvas = FigureCanvas(self.figure)  # a gtk.DrawingArea
+        #  vbox.pack_start(canvas)
+        #  toolbar = NavigationToolbar(canvas, win)
+        #  vbox.pack_start(toolbar, False, False)
+        #  win.show_all()
 
-        t = Thread(target=gtk.main)
-        #t = UpdatePlotThread()
-        t.daemon = True
+        #  t = Thread(target=gtk.main)
+        #  #t = UpdatePlotThread()
+        #  t.daemon = True
 
-        # detach plot window to separate thread
-        #t.start()
+        #  # detach plot window to separate thread
+        #  #t.start()
 
     def show_window(self):
         """
         This method is blocking until window with plot is closed.
         """
         gtk.main()
-
-    def plot(self):
-        pl.autoscale(tight=True)
-        self.figure.canvas.draw()
-        #self.logger.info('Current plot  data: %s' % self.data)
 
     def _refresh_plot(self):
         # Example of data:
@@ -167,7 +162,7 @@ def run():
     p.set_data({'host': {'mem_free': 1755836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4240164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
     #p.plot()
 
-    p.show_window()
+    #:p.show_window()
 
 if __name__ == '__main__':
     run()
