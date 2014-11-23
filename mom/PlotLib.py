@@ -1,117 +1,21 @@
 #! /usr/bin/env python
-import pylab as pl
 import logging
-
-import gtk
-
-from matplotlib.figure import Figure
-from numpy import arange, sin, pi
-
-# uncomment to select /GTK/GTKAgg/GTKCairo
-#from matplotlib.backends.backend_gtk import FigureCanvasGTK as FigureCanvas
-from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
-#from matplotlib.backends.backend_gtkcairo import FigureCanvasGTKCairo as FigureCanvas
-
-# or NavigationToolbar for classic
-#from matplotlib.backends.backend_gtk import NavigationToolbar2GTK as NavigationToolbar
-from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as NavigationToolbar
-
-# implement the default mpl key bindings
-#from matplotlib.backend_bases import key_press_handler
-
-from threading import Thread
-import Queue
-
-def work(plot):
-    try:
-        data = plot.queue.get_nowait()
-        print 'New data arrived from Q.'
-        plot.set_data(data)
-        pl.draw()
-        print 'Plot now should be updated...'
-    except Queue.Empty:
-        pass
+import json
 
 class Plot(object):
     def __init__(self, fields=[]):
         self.data = {}
         self.fields = fields
         self.logger = logging.getLogger('mom.Plot')
-        #pl.ioff() # disable interactivity on plot in window
-        #pl.ion()
-        self.logger.info('Interactive: %s', pl.isinteractive())
-        self.figure = pl.figure()
-        self.subplots = {}
-        self.subplots_width = 2
+        self.filename = 'plot.json'
+        self.i = 0
 
-        # maintain ability asynchronous data update
-        self.queue = Queue.Queue()
+    def save(self):
+        self.logger.info(self.data)
 
-        # really necessary?
-        self._refresh_plot()
-
-        timer2 = self.figure.canvas.new_timer(interval=100)
-        timer2.add_callback(work, self)
-
-        # detach plot window to separate thread
-        self.logger.info(pl)
-        t = Thread(target=pl.show)
-        t.daemon = True
-
-        #t.start()
-        timer2.start()
-        #import pdb; pdb.set_trace()
-        pl.show(block=False)
-
-    def get_queue(self):
-        """
-        Return reference to interprocess shared queue. Put new item to this
-        queue will cause add new set of data to plot and refresh that window.
-        """
-        return self.queue
-
-
-    def _refresh_plot(self):
-        # Example of data:
-        # self.data[guest][field] = {'data': [1,2,3], 'line': <pylab.plot>}
-
-        # subplot for each guest
-        for guest in self.data:
-            self.logger.info('Refreshing guest ' + guest + ', data: ' + str(self.data[guest]))
-            for field in self.data[guest]:
-                fl = self.data[guest][field]
-                x = range(len(fl['data']))
-                y = fl['data']
-
-                #print 'guest: %s, field: %s, X=%s, Y=%s' % (guest, field, x, y)
-
-                fl['line'].set_xdata(x)
-                fl['line'].set_ydata(y)
-            self.subplots[guest].relim()
-            self.subplots[guest].autoscale_view(True, 'both', True)
-
-    def _populate_subplots(self, data):
-        """
-        Prepare subplots according to sample data.
-        It creates one subplot per host.
-        """
-        count = len(data)
-        cols = int(count % self.subplots_width) + 1
-        rows = int(count / self.subplots_width) + 1
-        if count == self.subplots_width:
-            cols = count
-            rows = 1
-
-        i = 1
-        self.logger.info('Setup subplots: %s rows, %s cols' % (rows, cols))
-        for guest in data:
-            self.logger.debug("i %s", i)
-            sub_plot = self.figure.add_subplot(rows, cols, i)
-            self.logger.debug("add %s", i)
-            sub_plot.grid(True)
-            sub_plot.set_title(guest)
-            self.subplots[guest] = sub_plot
-            i += 1
+        with open(self.filename, 'w+') as f:
+            s = json.dumps(self.data, encoding='ascii', indent=2)
+            print >> f, s
 
     def set_data(self, data):
         """
@@ -120,10 +24,6 @@ class Plot(object):
         Accept dict by this example:
             {'guest-1': {'mem_free': 123, 'mem_available': 300}}
         """
-        # Only for first fime we need to populate all subplots
-        if not self.data:
-            self._populate_subplots(data)
-
         for guest, vals in data.iteritems():
             self.data.setdefault(guest, {})
             for field, value in vals.iteritems():
@@ -131,22 +31,14 @@ class Plot(object):
                 if field not in self.fields:
                     continue
 
-                if field not in self.data[guest]:
-                    plot_line = self.subplots[guest].plot([], [], 'o-')[0]
-                    plot_line.set_label(field)
-                    self.subplots[guest].legend()
+                self.data[guest].setdefault(field, {})
 
-                    line = {
-                        'data': [],
-                        'line': plot_line,
-                    }
-                    self.data[guest][field] = line
-
-                #if self.data[guest][field]['data'] != []):
-                self.data[guest][field]['data'].append(value)
-        self._refresh_plot()
-        pl.autoscale(tight=True)
-        self.figure.canvas.draw()
+                # Using dict for storing values of index, because guest can be
+                # spawned in the middle simulation and therefore samples
+                # wouldn't be continous.
+                self.data[guest][field][self.i] = value
+        self.i += 1
+        self.save()
 
 def run():
     p = Plot(['balloon_cur', 'mem_free'])

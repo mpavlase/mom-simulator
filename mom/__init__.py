@@ -34,7 +34,7 @@ class MOM:
             'balloon_cur',    # guest
             'mem_unused',     # guest
             'mem_free',       # host
-            'mem_available',  # guest
+            #'mem_available',  # guest
         ])
         #live_plotter = None
         policy_engine = PolicyEngine(self.config, hypervisor_iface, host_monitor, \
