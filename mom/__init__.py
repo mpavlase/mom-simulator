@@ -36,6 +36,7 @@ class MOM:
             'mem_free',       # host
             'mem_available',  # guest
         ])
+        #live_plotter = None
         policy_engine = PolicyEngine(self.config, hypervisor_iface, host_monitor, \
                                      guest_manager, live_plotter)
 
@@ -53,7 +54,6 @@ class MOM:
                 host_monitor,
                 guest_manager,
                 policy_engine,
-                #live_plotter
                 )):
                 self.config.set('__int__', 'running', '0')
             # Check the RPC server separately from the other threads since it
@@ -66,7 +66,6 @@ class MOM:
         self._wait_for_thread(policy_engine, 10)
         self._wait_for_thread(guest_manager, 5)
         self._wait_for_thread(host_monitor, 5)
-        #self._wait_for_thread(live_plotter, 5)
         self.logger.info("MOM ending")
 
     def shutdown(self):

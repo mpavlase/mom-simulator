@@ -120,12 +120,11 @@ class PolicyEngine(threading.Thread):
         guest_list = self.properties['guest_manager'].interrogate().values()
         guests_last_data = self.properties['guest_manager'].get_last_data()
 
+        guests_last_data.update({'host': host_last_data})
+        self.logger.info('Updated dataset for LivePlotter: %s' % guests_last_data)
         if self.plotter:
-            guests_last_data.update({'host': host_last_data})
-            self.logger.info('Updated dataset for LivePlotter: %s' % guests_last_data)
-
             self.plotter.set_data(guests_last_data)
-
+            pass
         ret = self.policy.evaluate(host, guest_list)
         if ret is False:
             return

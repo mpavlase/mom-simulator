@@ -20,54 +20,56 @@ from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as Navig
 #from matplotlib.backend_bases import key_press_handler
 
 from threading import Thread
+import Queue
 
-class UpdatePlotThread(Thread):
-    def __init__(self, plot):
-        super(UpdatePlotThread, self).__init__()
-    #    self.plot = plot
-
-    def run(self):
-        print 'start worker...'
-        while True:
-            print 'entering main GTK loop...'
-            gtk.main()
+def work(plot):
+    try:
+        data = plot.queue.get_nowait()
+        print 'New data arrived from Q.'
+        plot.set_data(data)
+        pl.draw()
+        print 'Plot now should be updated...'
+    except Queue.Empty:
+        pass
 
 class Plot(object):
     def __init__(self, fields=[]):
         self.data = {}
         self.fields = fields
         self.logger = logging.getLogger('mom.Plot')
-        pl.ion() # disable interactivity on plot in window
+        #pl.ioff() # disable interactivity on plot in window
+        #pl.ion()
+        self.logger.info('Interactive: %s', pl.isinteractive())
         self.figure = pl.figure()
         self.subplots = {}
         self.subplots_width = 2
 
-        #  win = gtk.Window()
-        #  win.connect("destroy", lambda x: gtk.main_quit())
-        #  win.set_default_size(400,300)
-        #  win.set_title("MoM live plot")
+        # maintain ability asynchronous data update
+        self.queue = Queue.Queue()
 
-        #  vbox = gtk.VBox()
-        #  win.add(vbox)
-        #  # ----------------------------
-        #  canvas = FigureCanvas(self.figure)  # a gtk.DrawingArea
-        #  vbox.pack_start(canvas)
-        #  toolbar = NavigationToolbar(canvas, win)
-        #  vbox.pack_start(toolbar, False, False)
-        #  win.show_all()
+        # really necessary?
+        self._refresh_plot()
 
-        #  t = Thread(target=gtk.main)
-        #  #t = UpdatePlotThread()
-        #  t.daemon = True
+        timer2 = self.figure.canvas.new_timer(interval=100)
+        timer2.add_callback(work, self)
 
-        #  # detach plot window to separate thread
-        #  #t.start()
+        # detach plot window to separate thread
+        self.logger.info(pl)
+        t = Thread(target=pl.show)
+        t.daemon = True
 
-    def show_window(self):
+        #t.start()
+        timer2.start()
+        #import pdb; pdb.set_trace()
+        pl.show(block=False)
+
+    def get_queue(self):
         """
-        This method is blocking until window with plot is closed.
+        Return reference to interprocess shared queue. Put new item to this
+        queue will cause add new set of data to plot and refresh that window.
         """
-        gtk.main()
+        return self.queue
+
 
     def _refresh_plot(self):
         # Example of data:
@@ -75,7 +77,7 @@ class Plot(object):
 
         # subplot for each guest
         for guest in self.data:
-            self.logger.info('Refreshing guest ' + guest)
+            self.logger.info('Refreshing guest ' + guest + ', data: ' + str(self.data[guest]))
             for field in self.data[guest]:
                 fl = self.data[guest][field]
                 x = range(len(fl['data']))
@@ -103,7 +105,9 @@ class Plot(object):
         i = 1
         self.logger.info('Setup subplots: %s rows, %s cols' % (rows, cols))
         for guest in data:
+            self.logger.debug("i %s", i)
             sub_plot = self.figure.add_subplot(rows, cols, i)
+            self.logger.debug("add %s", i)
             sub_plot.grid(True)
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
@@ -162,7 +166,25 @@ def run():
     p.set_data({'host': {'mem_free': 1755836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4240164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
     #p.plot()
 
-    #:p.show_window()
+    t = Thread(target=pl.show)
+    t.daemon = True
+
+    # detach plot window to separate thread
+    t.start()
+
+    work(p, gen)
+    sleep(0.5)
+    work(p, gen)
+    sleep(0.5)
+    work(p, gen)
+    sleep(0.5)
+    work(p, gen)
+    sleep(0.5)
+    work(p, gen)
+    sleep(0.5)
+
+    #sleep(10)
+
 
 if __name__ == '__main__':
     run()
