@@ -30,12 +30,15 @@ class MOM:
         if not hypervisor_iface:
             self.shutdown()
         guest_manager = GuestManager(self.config, hypervisor_iface)
-        live_plotter = Plot([
+
+        export_sampl_filename = self.config.get('simulator', 'export-samples')
+        live_plotter = Plot(export_sampl_filename, fields=[
             'balloon_cur',    # guest
             'mem_unused',     # guest
             'mem_free',       # host
-            #'mem_available',  # guest
-        ])
+            '_mem_used',      # host (only for overview, not for policies)
+            'mem_available',  # guest
+        ], scale=0.001)       # recalculate kB into MB
         #live_plotter = None
         policy_engine = PolicyEngine(self.config, hypervisor_iface, host_monitor, \
                                      guest_manager, live_plotter)
@@ -109,6 +112,10 @@ class MOM:
         self.config.set('host', 'collectors', 'HostMemory')
         self.config.add_section('guest')
         self.config.set('guest', 'collectors', 'GuestQemuProc, GuestMemory')
+        self.config.add_section('simulator')
+        self.config.set('simulator', 'source-file', 'samples.data')
+        self.config.set('simulator', 'export-samples', 'plot.json')
+
 
         # Override defaults from the config file
         self.config.read(fname)
@@ -221,6 +228,6 @@ class MOM:
         try:
             module = __import__('mom.HypervisorInterfaces.' + name + 'Interface', None, None, name)
             return module.instance(self.config)
-        except ImportError:
-            self.logger.error("Unable to import hypervisor interface: %s", name)
+        except ImportError, e:
+            self.logger.error("Unable to import hypervisor interface: %s because: %s" % (name, e))
             return None

@@ -27,7 +27,7 @@ class PolicyEngine(threading.Thread):
     results to all enabled Controller plugins.
     """
     def __init__(self, config, hypervisor_iface, host_monitor, guest_manager,
-                 live_plotter=None):
+                 export_sample=None):
         threading.Thread.__init__(self, name="PolicyEngine")
         self.setDaemon(True)
         self.config = config
@@ -38,7 +38,7 @@ class PolicyEngine(threading.Thread):
             'guest_manager': guest_manager,
         }
 
-        self.plotter = live_plotter
+        self.plotter = export_sample
 
         self.policy = Policy()
         self.load_policy()
@@ -121,10 +121,11 @@ class PolicyEngine(threading.Thread):
         guests_last_data = self.properties['guest_manager'].get_last_data()
 
         guests_last_data.update({'host': host_last_data})
-        self.logger.info('Updated dataset for LivePlotter: %s' % guests_last_data)
+
         if self.plotter:
+            self.logger.info('Updated dataset for LivePlotter: %s' % guests_last_data)
             self.plotter.set_data(guests_last_data)
-            pass
+
         ret = self.policy.evaluate(host, guest_list)
         if ret is False:
             return

@@ -19,10 +19,13 @@ from mom.HypervisorInterfaces.HypervisorInterface import *
 
 class FakeHostMemory(Collector):
     """
-    This Fake Collctor returns memory statistics about the host by examining
-    /proc/meminfo and /proc/vmstat.  The fields provided are:
+    This Fake Collector returns memory statistics about the host by examining
+        The fields provided are:
         mem_available - The total amount of available memory (kB)
         mem_free      - The amount of free memory including some caches (kB)
+        _mem_used     - "hidden" field provided by fakeInterface to get better
+                        overview about simulated system. It shouldn't be used
+                        in policies (kB)
     """
     def __init__(self, properties):
         self.logger = logging.getLogger('mom.Collectors.FakeHostMemory')
@@ -33,15 +36,16 @@ class FakeHostMemory(Collector):
         pass
 
     def collect(self):
-        self.logger.info('collect...')
+        self.logger.info('calling FakeHostMemory collect...')
         mem = self.hypervisor_iface.getHostMemoryStats()
-        self.logger.info(mem)
+        self.logger.info('FakeHostMemory.collect() = %s' % mem)
         data = {'mem_available': mem['mem_available'],
                 'mem_free': mem['mem_free'],
+                '_mem_used': mem['_mem_used'],
         }
         return data
 
     def getFields(self=None):
         #return set(['mem_available', 'mem_unused', 'mem_free', 'swap_in', \
         #           'swap_out', 'anon_pages', 'swap_total', 'swap_usage'])
-        return set(['mem_available', 'mem_free'])
+        return set(['mem_available', 'mem_free', '_mem_used'])

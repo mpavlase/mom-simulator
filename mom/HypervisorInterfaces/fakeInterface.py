@@ -18,6 +18,11 @@ import re
 import logging
 from subprocess import *
 from mom.HypervisorInterfaces.HypervisorInterface import *
+from mom.Collectors.Collector import FatalError as CollectorFatalError
+
+# This is special value that can be used in balloon_cur and means that VM is in
+# shutdown state.
+VM_SHUTDOWN = -1
 
 def tis(num):
     return '{0:,}'.format(num)
@@ -30,9 +35,8 @@ class fakeInterface(HypervisorInterface):
     You can find format description at begging of _parse_sample_file method.
     """
     def __init__(self, config):
-        self.conn = None
         self.logger = logging.getLogger('mom.fakeInterface')
-        self.mem_stats = ('mem_unused',)
+        self.mem_stats = ('mem_unused', '_mem_used')
         #self.domains = {
         #    'fake-vm-1': {
         #        'uuid': 'uuid-1',
@@ -40,13 +44,14 @@ class fakeInterface(HypervisorInterface):
         #}
         #self.domains['fake-vm-1'].update(def_mem_stat)
 
-        sample_file = config.get('main', 'source-file')
+        sample_file = config.get('simulator', 'source-file')
         self.logger.info('Using "%s" as source data for simulation.' % sample_file)
 
         self.domains = {}
 
         # This simulate constant memory utilization by host OS etc.
         self._parse_sample_file(sample_file)
+        self.sample_index = -1
 
     def _parse_sample_file(self, filename):
         """
@@ -70,34 +75,43 @@ class fakeInterface(HypervisorInterface):
 
 
         with open(filename, 'r') as f:
-            # parse maximum available host memory
-            self.sample_index = -1
-
-            line = f.readline()
-            samples_host = self._parse_csv(line)
-            self.host_available_mem = samples_host.pop(0)
-            self.host_samples = samples_host
-            self.logger.error('host.available: %s' % tis(self.host_available_mem))
-            self.logger.error('host.samples: %s' % self.host_samples)
-
             # each next line act as VM memory utilization
-            vm_number = 1
+            vm_number = 0
             for line in f.readlines():
-                samples_vm = self._parse_csv(line)
-                max_mem = samples_vm.pop(0)
-                curr_mem_used = samples_vm[0]
+                line = line.strip()
+
+                # skip blank and commented lines
+                if line == '' or line[0] == '#':
+                    self.logger.warn('Skipping source line %s' % line)
+                    continue
+
+                samples = self._parse_csv(line)
+                # parse maximum available host memory
+                max_mem = samples.pop(0)
+
+                # store first valid line separaly as host samples
+                if vm_number == 0:
+                    self.host_available_mem = max_mem
+                    self.host_samples = samples
+                    self.logger.error('host.available: %s' % tis(self.host_available_mem))
+                    self.logger.error('host.samples: %s' % self.host_samples)
+                    vm_number += 1
+                    continue
+
+                curr_balloon = samples.pop(0)
+                curr_mem_used = samples[0]
 
                 domain = {'fake-vm-' + str(vm_number): {
                         'uuid': 'uuid-' + str(vm_number),
-                        'balloon_cur': max_mem,
+                        'balloon_cur': curr_balloon,
                         'balloon_min': 0,
                         'balloon_max': max_mem,
                         'mem_unused': max_mem - curr_mem_used,
-                        'mem_usage_samples': samples_vm,
+                        'mem_usage_samples': samples,
                     }
                 }
-                self.logger.error(domain)
-                self.logger.error(curr_mem_used)
+                #self.logger.error(domain)
+                #self.logger.error(curr_mem_used)
                 self.domains.update(domain)
                 vm_number += 1
 
@@ -107,7 +121,7 @@ class fakeInterface(HypervisorInterface):
         Method parse one line in CSV format to separated values and convert
         them into integers.
         """
-        samples = re.split(',\s*', line.strip())
+        samples = re.split(',\s*', line)
         samples = map(lambda x: int(x), samples)
         return samples
 
@@ -120,10 +134,14 @@ class fakeInterface(HypervisorInterface):
         self.logger.warn('Trying get %s. index from %s' % (self.sample_index, source))
         try:
             curr_sample = source[self.sample_index]
+            self.logger.warn('Its... %s' % (curr_sample))
         except IndexError:
-            self.logger.warn('Simulated resource is running out of samples '
-                             '(%d > %d).' % (self.sample_index, samples_len))
             curr_sample = source[samples_len - 1]
+            self.logger.warn('Simulated resource is running out of samples '
+                             '(%d > %d). Using latest value (%s)' %
+                             (self.sample_index, samples_len, curr_sample))
+            # This exception will cause shutdown whole MoM (as simulation)
+            raise CollectorFatalError('Simulated resource is running out of samples.')
         return curr_sample
 
     def _getDomainFromUUID(self, uuid):
@@ -146,17 +164,34 @@ class fakeInterface(HypervisorInterface):
         count with other factors such as memory-consuming processes
         running on host.
         """
-        used = [vm['balloon_cur'] for vm in self.domains.itervalues()]
-        #used = [vm['balloon_cur'] for vm in self.domains]
+        used = [vm['balloon_cur'] for vm in self.domains.itervalues()
+                if self.sample_index >= 0 and self._get_current_sample(vm['mem_usage_samples']) != VM_SHUTDOWN]
         used_by_vm = sum(used)
+
+        #used_by_vm = 0
+        #for guest, vm in self.domains.iteritems():
+        #    sample = self._get_current_sample(vm['mem_usage_samples'])
+        #    self.logger.debug('getHostMemoryStats guest %s has current mem_usage %s' % (guest, sample))
+
+        #    if sample != VM_SHUTDOWN:
+        #        self.logger.debug('getHostMemoryStats guest %s is alive.' % (guest, ))
+        #        used_by_vm += sample
+
+        #for guest, vm in self.domains.iteritems():
+        #    cur = vm['balloon_cur']
+        #    self.logger.error('Guest %s, balloon_cur = %s' % (guest, cur))
+
+        #used = [vm['balloon_cur'] for vm in self.domains]
         used_by_host = self._get_current_sample(self.host_samples)
 
         used = used_by_vm + used_by_host
-        self.logger.error('used: %s (by VMs: %s), by host itself: %s' % (tis(used), tis(used_by_vm), tis(used_by_host)))
+        self.logger.error('getHostMemoryStats used: %s (by VMs: %s), by host itself: %s' % (tis(used), tis(used_by_vm), tis(used_by_host)))
 
         data = {'mem_available': self.host_available_mem,
                 'mem_free': self.host_available_mem - used,
+                '_mem_used': used,
         }
+        self.logger.error('getHostMemoryStats = %s' % (data))
         return data
 
     def getVmList(self):
@@ -166,9 +201,11 @@ class fakeInterface(HypervisorInterface):
 
         for k, v in self.domains.iteritems():
             try:
-                if v['mem_usage_samples'][self.sample_index] > 0:
+                #if v['mem_usage_samples'][self.sample_index] != VM_SHUTDOWN:
+                if self._get_current_sample(v['mem_usage_samples']) != VM_SHUTDOWN:
                     ret.append(k)
-            except IndexError:
+            except IndexError, e:
+                self.logger.debug('getVmList got %s' % s)
                 pass
         self.logger.info('XX list = %s' % ret)
         return ret
@@ -193,6 +230,7 @@ class fakeInterface(HypervisorInterface):
         ret = {}
         #info = self._domainGetMemoryStats(domain)
         curr_mem_used = self._get_current_sample(info['mem_usage_samples'])
+        info['_mem_used']= curr_mem_used
 
         for key in self.mem_stats:
             ret[key] = info[key]
@@ -214,7 +252,7 @@ class fakeInterface(HypervisorInterface):
         d = self.domains[domain]
         ret =  {'balloon_max': d['balloon_max'], 'balloon_cur': d['balloon_cur'],
                 'balloon_min': 0 }
-        self.logger.info('memballoon info %s for %s' % (ret, d))
+        self.logger.info('memballoon info %s for %s' % (ret, domain))
         return ret
 
     def getStatsFields(self):
