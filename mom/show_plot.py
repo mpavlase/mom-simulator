@@ -2,30 +2,18 @@
 import pylab as pl
 import logging
 import json
-
-import gtk
-
-from matplotlib.figure import Figure
-from numpy import arange, sin, pi
-
-# uncomment to select /GTK/GTKAgg/GTKCairo
-#from matplotlib.backends.backend_gtk import FigureCanvasGTK as FigureCanvas
-from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
-#from matplotlib.backends.backend_gtkcairo import FigureCanvasGTKCairo as FigureCanvas
-
-# or NavigationToolbar for classic
-#from matplotlib.backends.backend_gtk import NavigationToolbar2GTK as NavigationToolbar
-from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as NavigationToolbar
-
-# implement the default mpl key bindings
-#from matplotlib.backend_bases import key_press_handler
+import sys
 
 import time
 
+# Special name of guest that actually mean host (hypervisor). It was used to
+# determine total amount of samples. Guests can be shutted of during mom run.
+HOST = 'host'
+
 class Plot(object):
     def __init__(self):
+        self._setup_logger()
         self.data = {}
-        self.logger = logging.getLogger('mom.Plot')
         #pl.ioff() # disable interactivity on plot in window
         #pl.ion()
         #self.logger.info('Interactive: %s', pl.isinteractive())
@@ -33,6 +21,22 @@ class Plot(object):
         self.subplots = {}
         self.subplots_width = 2
         self.filename = 'plot.json'
+        self.benchmark = False
+
+    def _setup_logger(self):
+        self.logger = logging.getLogger('show_plot')
+        self.logger.propagate = False
+        self.logger.setLevel(logging.ERROR)
+
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        handler.setLevel(logging.DEBUG)
+
+        self.logger.addHandler(handler)
+
+    def enable_benchmark(self):
+        sefl.benchmark = True
 
     def plot(self):
         # clear plot window from previous data-lines
@@ -44,9 +48,10 @@ class Plot(object):
         self._refresh_plot()
         # benchmark - end
         td = time.time() - t
-        #self.logger.info('Benchmark: load and process input: %s', td)
+        if self.benchmark:
+            self.logger.info('Benchmark: load and process input: %s', td)
 
-        pl.autoscale(tight=True)
+        #pl.autoscale(tight=True)
         self.figure.canvas.draw()
 
     def load(self):
@@ -74,7 +79,8 @@ class Plot(object):
         # need it as ordinal int().
         for guest in self.data:
             sub_plot = self.figure.add_subplot(rows, cols, i)
-            sub_plot.grid(True)
+            sub_plot.grid(True, which='both')
+            #sub_plot.minorticks_on()
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
             i += 1
@@ -83,9 +89,11 @@ class Plot(object):
                 orig = self.data[guest][field]
                 self.data[guest][field] = {}
 
-                plot_line = self.subplots[guest].plot([], [], 'o-')[0]
-                plot_line.set_label(field)
-                self.subplots[guest].legend()
+                plot_line = self.subplots[guest].plot([], [], '.-')[0]
+                label = '(' + field + ')' if field[0] == '_' else field
+                self.logger.debug(label)
+                plot_line.set_label(label)
+                self.subplots[guest].legend(loc='best', fontsize='medium')
 
                 line = {
                     'samples': {},
@@ -96,8 +104,8 @@ class Plot(object):
                 for key, val in orig.iteritems():
                     key = int(key)
                     self.data[guest][field]['samples'][key] = val
-                #self.logger.warn(self.data[guest][field])
-                #self.logger.info('.')
+                self.logger.warn('guest %s, field %s: %s' % (guest, field, self.data[guest][field]))
+                self.logger.info('.')
 
         #self.logger.info(self.data)
 
@@ -125,6 +133,21 @@ class Plot(object):
             samples[index] = None
 
     def _refresh_plot(self):
+        all_guests = set(self.data.keys())
+        guests = all_guests - set([HOST])
+
+        if HOST in all_guests:
+            range_x = self._refresh_guest(HOST)
+            self.logger.error('host has %s samples.' % range_x)
+        else:
+            self.logger.warn('Input data doesn\'t contain host samples, plot '
+                             'would be probablu broken')
+            range_x = None
+
+        for g in guests:
+            self._refresh_guest(g, range_x)
+
+    def _refresh_guest(self, guest, range_x=None):
         """
         Updates values in displayed plot.
         Example of data:
@@ -132,49 +155,36 @@ class Plot(object):
             'samples': {4: 100, 5: 110, 6: 105}, 'line': <pylab.plot>}
         """
 
-        # subplot for each guest
-        for guest in self.data:
-            #self.logger.info('Refreshing guest ' + guest + ', data: ' + str(self.data[guest]))
-            for field in self.data[guest]:
-                fl = self.data[guest][field]
-                samples = fl['samples']
-                self._fill_gaps_in_samples(fl['samples'])
-                x = samples.keys()
-                y = samples.values()
+        range_max = None
+        for field in self.data[guest]:
+            fl = self.data[guest][field]
+            self.logger.info('guest %s, field %s:%s' % (guest, field, fl))
+            samples = fl['samples']
+            self._fill_gaps_in_samples(fl['samples'])
+            x = samples.keys()
+            y = samples.values()
 
-                #print 'guest: %s, field: %s, X=%s, Y=%s' % (guest, field, x, y)
+            if len(x) > range_max:
+                range_max = len(x)
 
-                fl['line'].set_xdata(x)
-                fl['line'].set_ydata(y)
-            self.subplots[guest].relim()
-            self.subplots[guest].autoscale_view(True, 'both', True)
+            #print 'guest: %s, field: %s, X=%s, Y=%s' % (guest, field, x, y)
+            line = fl['line']
+            line.set_xdata(x)
+            line.set_ydata(y)
+        self.subplots[guest].relim()
+        subplot = self.subplots[guest]
 
-def run():
+        self.subplots[guest].set_xlim([0, max(range_x, range_max)])
+        self.subplots[guest].autoscale_view(True, False, True)
+
+        return range_max
+
+if __name__ == '__main__':
     p = Plot()
-
-    l = logging.getLogger('mom.LivePlotter')
-    l.propagate = False
-    l.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.DEBUG)
-    l.addHandler(handler)
-    p.logger = l
-
-    #p.set_data({'host': {'mem_free': 1755836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4244164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
-    #p.set_data({'host': {'mem_free': 1355836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4244164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
-    #p.set_data({'host': {'mem_free': 1755836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4240164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
 
     timer = p.figure.canvas.new_timer(interval=1000)
     timer.add_callback(p.plot)
-    timer.start()
+    #timer.start()
 
     p.plot()
     p.show()
-    #p.set_data(data)
-    #pl.draw()
-
-
-if __name__ == '__main__':
-    run()
