@@ -71,9 +71,11 @@ class Plot(object):
         count = len(self.data)
         cols = int(count % self.subplots_width) + 1
         rows = int(count / self.subplots_width) + 1
-        if count == self.subplots_width:
+        if count <= self.subplots_width:
             cols = count
             rows = 1
+        elif count == 1:
+            cols = 1
 
         # Key each sample is loaded from json as str() but for sorting etc. we
         # need it as ordinal int().
@@ -138,7 +140,7 @@ class Plot(object):
 
         if HOST in all_guests:
             range_x = self._refresh_guest(HOST)
-            self.logger.error('host has %s samples.' % range_x)
+            self.logger.debug('host has %s samples.' % range_x)
         else:
             self.logger.warn('Input data doesn\'t contain host samples, plot '
                              'would be probablu broken')
@@ -184,7 +186,7 @@ if __name__ == '__main__':
 
     timer = p.figure.canvas.new_timer(interval=1000)
     timer.add_callback(p.plot)
-    #timer.start()
+    timer.start()
 
     p.plot()
     p.show()
