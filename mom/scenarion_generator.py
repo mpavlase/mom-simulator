@@ -15,8 +15,10 @@
 #    self.logger.addHandler(handler)
 
 import logging
+import sys
 
 SHUTOFF = -1
+NEWLINE = '\n'
 
 class GuestBase(object):
     def __init__(self, name, max_mem, mem_start=None):
@@ -158,33 +160,76 @@ class Host(GuestBase):
         # cut off latest comma
         return ret_str[:-1]
 
+class Simulator(object):
+    def __init__(self, mem_max):
+        self.host = Host('host', mem_max)
+        self.gues = []
 
-def simulator():
-    host = Host('host', 10000, 10000)
+    def add_guest(self, mem_max, balloon_curr):
+        guest = Guest(len(self.guest), mem_max, balloon_cur)
+        self.guest.append(guest)
+        return guest
+
+    def export(self, filename=None):
+        if filename:
+            fd = open(filename, 'w+')
+        else:
+            fd = sys.stdout
+
+        fd.write(host.export_samples() + NEWLINE)
+        for g in self.guest:
+            fd.write(g.export_samples() + NEWLINE)
+
+def scenario_5vm_nice_regular_host():
+    """
+    5 guests, 16GB host
+    2GB per guest, not much memory intensive
+    """
+    sim = Simulator(16000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+
+    sim.export()
+
+def simulator(filename):
+    host = Host('host', 10000)
     num_guests = 2
     guest = [Guest(g, 2000, 2000) for g in xrange(num_guests)]
 
+    # 0.
     host.start(7000)
     guest[0].stop()
     guest[1].stop()
 
-    guest[0].start(600)
+    for i in xrange(2):
+        host.no_change()
+        guest[0].no_change()
+        guest[1].no_change()
+
+    # 3. start guest-1
+    host.no_change()
+    guest[0].start(1000)
     guest[1].stop()
 
-    for i in xrange(3):
+    for i in xrange(5):
         host.no_change()
         guest[0].no_change()
         guest[1].no_change()
 
+    # 7.
     host.no_change()
     guest[0].no_change()
-    guest[1].start(600)
+    guest[1].start(1000)
 
-    for i in xrange(3):
+    for i in xrange(5):
         host.no_change()
         guest[0].no_change()
         guest[1].no_change()
 
+    # 11.
     host.no_change()
     guest[0].stop()
     guest[1].stop()
