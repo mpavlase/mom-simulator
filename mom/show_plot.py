@@ -3,12 +3,29 @@ import pylab as pl
 import logging
 import json
 import sys
-
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FuncFormatter
 import time
+import math
 
 # Special name of guest that actually mean host (hypervisor). It was used to
 # determine total amount of samples. Guests can be shutted of during mom run.
 HOST = 'host'
+
+def bit_formatter(size, pos):
+    sign = ''
+    if size < 0:
+        sign = '-'
+        size = abs(size)
+    scale = ('kB', 'MB', 'GB')
+    print size
+    i = int(math.floor(math.log(size, 1024)))
+    p = math.pow(1024, i)
+    s = round(size/p, 2)
+    if (s > 0):
+        return '%s%s %s' % (sign, s, scale[i])
+    else:
+        return '0'
+    #return '_' + str(val)
 
 class Plot(object):
     def __init__(self):
@@ -78,10 +95,14 @@ class Plot(object):
             cols = 1
 
         # Key each sample is loaded from json as str() but for sorting etc. we
-        # need it as ordinal int().
+        # need it as ordinal int().a
+        y_formatter = FuncFormatter(bit_formatter)
         for guest in self.data:
             sub_plot = self.figure.add_subplot(rows, cols, i)
             sub_plot.grid(True, which='both')
+            sub_plot.xaxis.set_minor_locator(MultipleLocator(1))
+            sub_plot.xaxis.set_minor_formatter(FormatStrFormatter('%d'))
+            #sub_plot.yaxis.set_major_formatter(y_formatter)
             #sub_plot.minorticks_on()
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
