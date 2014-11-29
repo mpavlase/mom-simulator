@@ -50,6 +50,8 @@ class Plot(object):
         """
         for guest, vals in data.iteritems():
             self.data.setdefault(guest, {})
+            if len(vals) == 0:
+                continue
             for field, value in vals.iteritems():
                 # filter out unwanted data lines
                 if field not in self.fields:
