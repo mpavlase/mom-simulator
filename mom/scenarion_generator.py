@@ -16,6 +16,7 @@
 
 import logging
 import sys
+import random
 
 SHUTOFF = -1
 NEWLINE = '\n'
@@ -131,6 +132,15 @@ class GuestBase(object):
         """
         self.set(amount)
 
+    def random_norm(self, mean, deviation):
+        """
+        Set current memory as result of normal/Gaussian distributin.
+        """
+        new_usage = random.gauss(mean, deviation)
+        self.set(new_usage)
+        self.logger.debug('.random_norm set memory to %s (mena=%s, std_dev=%s)'
+                % (self.memory, mean, deviation))
+
 class Guest(GuestBase):
     pass
 
@@ -163,11 +173,11 @@ class Host(GuestBase):
 class Simulator(object):
     def __init__(self, mem_max):
         self.host = Host('host', mem_max)
-        self.gues = []
+        self.guests = []
 
     def add_guest(self, mem_max, balloon_curr):
-        guest = Guest(len(self.guest), mem_max, balloon_cur)
-        self.guest.append(guest)
+        guest = Guest(len(self.guests), mem_max, balloon_curr)
+        self.guests.append(guest)
         return guest
 
     def export(self, filename=None):
@@ -176,14 +186,15 @@ class Simulator(object):
         else:
             fd = sys.stdout
 
-        fd.write(host.export_samples() + NEWLINE)
-        for g in self.guest:
+        fd.write(self.host.export_samples() + NEWLINE)
+        for g in self.guests:
             fd.write(g.export_samples() + NEWLINE)
 
 def scenario_5vm_nice_regular_host():
     """
-    5 guests, 16GB host
-    2GB per guest, not much memory intensive
+    5 guests, 16GB host (3GB of that is host's own stable usage)
+    2GB per guest, small memory intensive changes (+/- 10MB)
+    All guests are starting at one moment (sligtly more difficult for MoM).
     """
     sim = Simulator(16000)
     sim.add_guest(2000, 2000)
@@ -192,9 +203,29 @@ def scenario_5vm_nice_regular_host():
     sim.add_guest(2000, 2000)
     sim.add_guest(2000, 2000)
 
-    sim.export()
+    sim.host.start(5000)
+    for guest in sim.guests:
+        guest.no_change()
+        #guest.start(1000)
 
-def simulator(filename):
+    sim.host.no_change()
+    for index in xrange(len(sim.guests)):
+        sim.guests[index].start(1000)
+    #for i in xrange(2 * len(sim.guests)):
+    #    sim.host.no_change()
+    #    for index in xrange(len(sim.guests)):
+    #        if i / 2 == index:
+    #            sim.guests[index].start(1000)
+    #        sim.guests[index].no_change()
+
+    for i in xrange(25):
+        sim.host.no_change()
+        for guest in sim.guests:
+            guest.no_change()
+
+    sim.export('scenario_5vm_nice_regular_host')
+
+def simulator():
     host = Host('host', 10000)
     num_guests = 2
     guest = [Guest(g, 2000, 2000) for g in xrange(num_guests)]
@@ -246,4 +277,4 @@ def simulator(filename):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    simulator()
+    scenario_5vm_nice_regular_host()
