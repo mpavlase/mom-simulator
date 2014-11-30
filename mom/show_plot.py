@@ -37,8 +37,11 @@ class Plot(object):
         self.figure = pl.figure()
         self.subplots = {}
         self.subplots_width = 2
-        self.filename = 'plot.json'
+        self.set_source_data('plot.json')
         self.benchmark = False
+
+    def set_source_data(self, filename):
+        self.filename = filename
 
     def _setup_logger(self):
         self.logger = logging.getLogger('show_plot')
@@ -54,7 +57,7 @@ class Plot(object):
         self.logger.addHandler(handler)
 
     def enable_benchmark(self):
-        sefl.benchmark = True
+        self.benchmark = True
 
     def plot(self):
         # clear plot window from previous data-lines
@@ -88,7 +91,7 @@ class Plot(object):
         i = 1
         self.data = {}
         count = len(data)
-        rows = int(count / self.subplots_width)
+        rows = math.ceil(1.0 * count / self.subplots_width)
         cols = self.subplots_width
         if count <= self.subplots_width:
             cols = count
@@ -210,9 +213,12 @@ class Plot(object):
 if __name__ == '__main__':
     p = Plot()
 
+    if len(sys.argv) == 2:
+        p.set_source_data(sys.argv[1])
+
     timer = p.figure.canvas.new_timer(interval=1000)
     timer.add_callback(p.plot)
-    timer.start()
+    #timer.start()
 
     p.plot()
     p.show()
