@@ -44,6 +44,7 @@ class Plot(object):
         self.logger = logging.getLogger('show_plot')
         self.logger.propagate = False
         self.logger.setLevel(logging.ERROR)
+        #self.logger.setLevel(logging.DEBUG)
 
         handler = logging.StreamHandler()
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -61,7 +62,7 @@ class Plot(object):
 
         t = time.time()
         # benchmark - start
-        self.load()
+        self._load()
         self._refresh_plot()
         # benchmark - end
         td = time.time() - t
@@ -71,23 +72,24 @@ class Plot(object):
         #pl.autoscale(tight=True)
         self.figure.canvas.draw()
 
-    def load(self):
+    def _load(self):
         try:
             with open(self.filename, 'r') as f:
                 new_data = json.load(f)
-                self.data = new_data
                 self.subplots = {}
-                self._preprocess_data()
+                self._preprocess_data(new_data)
                 #self.logger.info(self.data)
         except Exception, e:
             self.logger.error(e)
 
-    def _preprocess_data(self):
+    def _preprocess_data(self, data):
         # Setup layout of all subplots
+        # this is index of subplot in figure (window)
         i = 1
-        count = len(self.data)
-        cols = int(count % self.subplots_width) + 1
-        rows = int(count / self.subplots_width) + 1
+        self.data = {}
+        count = len(data)
+        rows = int(count / self.subplots_width)
+        cols = self.subplots_width
         if count <= self.subplots_width:
             cols = count
             rows = 1
@@ -97,22 +99,25 @@ class Plot(object):
         # Key each sample is loaded from json as str() but for sorting etc. we
         # need it as ordinal int().a
         y_formatter = FuncFormatter(bit_formatter)
-        for guest in self.data:
+        for guest in data:
+            self.data[guest] = {}
             sub_plot = self.figure.add_subplot(rows, cols, i)
             sub_plot.grid(True, which='both')
-            sub_plot.xaxis.set_minor_locator(MultipleLocator(1))
-            sub_plot.xaxis.set_minor_formatter(FormatStrFormatter('%d'))
+            #sub_plot.xaxis.set_minor_locator(MultipleLocator(1))
+            #sub_plot.xaxis.set_minor_formatter(FormatStrFormatter('%d'))
             #sub_plot.yaxis.set_major_formatter(y_formatter)
             #sub_plot.minorticks_on()
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
             i += 1
 
-            for field in self.data[guest]:
-                orig = self.data[guest][field]
+            for field in data[guest]:
+                orig = data[guest][field]
                 self.data[guest][field] = {}
 
                 plot_line = self.subplots[guest].plot([], [], '.-')[0]
+
+                # label that starts with '_' is not shown in legend.
                 label = '(' + field + ')' if field[0] == '_' else field
                 self.logger.debug(label)
                 plot_line.set_label(label)
@@ -130,7 +135,7 @@ class Plot(object):
                 self.logger.warn('guest %s, field %s: %s' % (guest, field, self.data[guest][field]))
                 self.logger.info('.')
 
-        #self.logger.info(self.data)
+        self.logger.info(self.data)
 
     def show(self):
         """
@@ -197,7 +202,7 @@ class Plot(object):
         self.subplots[guest].relim()
         subplot = self.subplots[guest]
 
-        self.subplots[guest].set_xlim([0, max(range_x, range_max)])
+        self.subplots[guest].set_xlim([0, max(range_x, range_max - 1)])
         self.subplots[guest].autoscale_view(True, False, True)
 
         return range_max
