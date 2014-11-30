@@ -28,7 +28,7 @@ class Plot(object):
         Export all stats info one JSON file, that can be easily read by other
         scripts.
         """
-        self.logger.info(self.data)
+        #self.logger.info(self.data)
 
         with open(self.filename, 'w+') as f:
             s = json.dumps(self.data, encoding='ascii', indent=2)
