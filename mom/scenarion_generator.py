@@ -17,6 +17,7 @@
 import logging
 import sys
 import random
+from textwrap import dedent
 
 SHUTOFF = -1
 NEWLINE = '\n'
@@ -132,13 +133,26 @@ class GuestBase(object):
         """
         self.set(amount)
 
+    def rand_mean_as_curr(self):
+        """
+        Store current memory as mean parameter for Gaussian distribution
+        """
+        self.rand_const_mean = self.memory
+
     def random_norm(self, mean, deviation):
         """
         Set current memory as result of normal/Gaussian distributin.
+        param: mean center of Gauss curve, if is None, local contstant value
+               would be used. [MB]
+        param: deviation scatter values, [MB]
         """
+        if mean is None:
+            mean = self.rand_const_mean
+
         new_usage = random.gauss(mean, deviation)
+        new_usage = int(new_usage)
         self.set(new_usage)
-        self.logger.debug('.random_norm set memory to %s (mena=%s, std_dev=%s)'
+        self.logger.debug('.random_norm set memory to %s (mean=%s, deviation=%s)'
                 % (self.memory, mean, deviation))
 
 class Guest(GuestBase):
@@ -174,17 +188,23 @@ class Simulator(object):
     def __init__(self, mem_max):
         self.host = Host('host', mem_max)
         self.guests = []
+        random.seed(0)
 
     def add_guest(self, mem_max, balloon_curr):
         guest = Guest(len(self.guests), mem_max, balloon_curr)
         self.guests.append(guest)
         return guest
 
-    def export(self, filename=None):
+    def export(self, filename=None, comment=''):
         if filename:
             fd = open(filename, 'w+')
         else:
             fd = sys.stdout
+
+        # Add comment to begining of output
+        doc_lines = dedent(comment).splitlines()
+        doc = map(lambda x: '# ' + x, doc_lines)
+        fd.write(NEWLINE.join(doc) + NEWLINE)
 
         fd.write(self.host.export_samples() + NEWLINE)
         for g in self.guests:
@@ -208,7 +228,7 @@ def scenario_5vm_nice_regular_host():
         guest.no_change()
         #guest.start(1000)
 
-    sim.host.no_change()
+    #sim.host.no_change()
     for index in xrange(len(sim.guests)):
         sim.guests[index].start(1000)
     #for i in xrange(2 * len(sim.guests)):
@@ -218,12 +238,18 @@ def scenario_5vm_nice_regular_host():
     #            sim.guests[index].start(1000)
     #        sim.guests[index].no_change()
 
-    for i in xrange(25):
-        sim.host.no_change()
-        for guest in sim.guests:
-            guest.no_change()
+    # save current used memory as constant mean for upcomming Gauss rand.
+    sim.host.rand_mean_as_curr()
+    map(lambda x: x.rand_mean_as_curr(), sim.guests)
 
-    sim.export('scenario_5vm_nice_regular_host')
+    for i in xrange(25):
+        sim.host.random_norm(mean=None, deviation=15)
+
+        # simulate some memory activity on guests.
+        map(lambda x: x.random_norm(mean=None, deviation=15), sim.guests)
+
+    doc = scenario_5vm_nice_regular_host.__doc__
+    sim.export('scenario_5vm_nice_regular_host', comment=doc)
 
 def simulator():
     host = Host('host', 10000)
@@ -276,5 +302,5 @@ def simulator():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.WARN)
     scenario_5vm_nice_regular_host()
