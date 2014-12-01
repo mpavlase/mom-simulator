@@ -231,21 +231,16 @@ def scenario_5vm_nice_regular_host():
     #sim.host.no_change()
     for index in xrange(len(sim.guests)):
         sim.guests[index].start(1000)
-    #for i in xrange(2 * len(sim.guests)):
-    #    sim.host.no_change()
-    #    for index in xrange(len(sim.guests)):
-    #        if i / 2 == index:
-    #            sim.guests[index].start(1000)
-    #        sim.guests[index].no_change()
 
-    # save current used memory as constant mean for upcomming Gauss rand.
+    # save current used memory as constant mean for upcomming Gauss random
     sim.host.rand_mean_as_curr()
     map(lambda x: x.rand_mean_as_curr(), sim.guests)
 
     for i in xrange(25):
+        # simulate some memory activity on host
         sim.host.random_norm(mean=None, deviation=15)
 
-        # simulate some memory activity on guests.
+        # simulate some memory activity on guests
         map(lambda x: x.random_norm(mean=None, deviation=15), sim.guests)
 
     doc = scenario_5vm_nice_regular_host.__doc__
