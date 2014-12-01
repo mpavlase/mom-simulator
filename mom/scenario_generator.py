@@ -249,7 +249,7 @@ def scenario_5vm_nice_regular_host():
 
 def scenario_5vm_ugly_regular_host():
     """
-    5 guests, 16GB host (3GB of that is host's own stable usage)
+    5 guests, 16GB host (5GB of that is host's own stable usage)
     2GB per guest, significant memory intensive changes (+/- 20MB)
     All guests are starting at one moment (sligtly more difficult for MoM).
     """
