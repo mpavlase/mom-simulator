@@ -251,6 +251,42 @@ def scenario_5vm_nice_regular_host():
     doc = scenario_5vm_nice_regular_host.__doc__
     sim.export('scenario_5vm_nice_regular_host', comment=doc)
 
+
+def scenario_5vm_ugly_regular_host():
+    """
+    5 guests, 16GB host (3GB of that is host's own stable usage)
+    2GB per guest, significant memory intensive changes (+/- 20MB)
+    All guests are starting at one moment (sligtly more difficult for MoM).
+    """
+    sim = Simulator(16000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+    sim.add_guest(2000, 2000)
+
+    sim.host.start(5000)
+    for guest in sim.guests:
+        guest.no_change()
+
+    # launch all guests at the same moment
+    sim.host.no_change()
+    map(lambda x: x.start(1000), sim.guests)
+
+    # save current used memory as constant mean for upcomming Gauss random
+    sim.host.rand_mean_as_curr()
+    map(lambda x: x.rand_mean_as_curr(), sim.guests)
+
+    for i in xrange(25):
+        # simulate some memory activity on host
+        sim.host.random_norm(mean=None, deviation=15)
+
+        # simulate some memory activity on guests
+        map(lambda x: x.random_norm(mean=None, deviation=20), sim.guests)
+
+    doc = scenario_5vm_nice_regular_host.__doc__
+    sim.export('scenario_5vm_nice_regular_host', comment=doc)
+
 def simulator():
     host = Host('host', 10000)
     num_guests = 2
@@ -271,7 +307,7 @@ def simulator():
     guest[0].start(1000)
     guest[1].stop()
 
-    for i in xrange(5):
+    for i in xrange(3):
         host.no_change()
         guest[0].no_change()
         guest[1].no_change()
@@ -281,7 +317,7 @@ def simulator():
     guest[0].no_change()
     guest[1].start(1000)
 
-    for i in xrange(5):
+    for i in xrange(15):
         host.no_change()
         guest[0].no_change()
         guest[1].no_change()
@@ -303,4 +339,5 @@ def simulator():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
-    scenario_5vm_nice_regular_host()
+    simulator()
+    #scenario_5vm_nice_regular_host()
