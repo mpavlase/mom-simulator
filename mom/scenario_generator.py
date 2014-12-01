@@ -283,7 +283,44 @@ def scenario_5vm_ugly_regular_host():
     sim.export('scenario_5vm_nice_regular_host', comment=doc)
 
 
+def scenario_1vm_big_swap_regular_host():
+    """
+    1 guests, 16GB host (5GB of that is host's own stable usage)
+    4GB guest (used 500MB), small memory intensive changes (+/- 10MB)
+    On this scenation can be examined length (in samples) when is host under
+    pressure (using a lot of swap).
+    """
+    sim = Simulator(16000)
+    host = sim.host
+    guest = sim.add_guest(4000, 4000)
+
+    host.start(14200)
+    guest.no_change()
+
+    host.no_change()
+    guest.no_change()
+
+    host.no_change()
+    guest.start(500)
+
+    # save current used memory as constant mean for upcomming Gauss random
+    host.rand_mean_as_curr()
+    guest.rand_mean_as_curr()
+
+    for i in xrange(50):
+        # simulate some memory activity on host
+        host.random_norm(mean=None, deviation=15)
+
+        # simulate some memory activity on guests
+        guest.random_norm(mean=None, deviation=10)
+
+    doc = scenario_1vm_big_swap_regular_host.__doc__
+    #sim.export('scenario_1vm_big_swap_regular_host', comment=doc)
+    sim.export(comment=doc)
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
     #scenario_5vm_nice_regular_host()
-    scenario_5vm_ugly_regular_host()
+    #scenario_5vm_ugly_regular_host()
+    scenario_1vm_big_swap_regular_host()
