@@ -110,6 +110,8 @@ class Plot(object):
             #sub_plot.xaxis.set_minor_formatter(FormatStrFormatter('%d'))
             #sub_plot.yaxis.set_major_formatter(y_formatter)
             #sub_plot.minorticks_on()
+            sub_plot.set_xlabel('No. sample [-]')
+            sub_plot.set_ylabel('Memory [MB]')
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
             i += 1
