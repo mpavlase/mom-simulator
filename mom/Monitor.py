@@ -170,6 +170,20 @@ class Monitor:
             self.variables[var] = val
         self.data_sem.release()
 
+    def update_statistics_variable(self, name, value):
+        """
+        Update the value in latest statistics from Entity. This is useful when
+        in rules there is need to maintain own 'stack' of statistics.
+        Value is not tied with some particular field of collector, it is just
+        value, number.
+
+        There could be problem with missing values when policy and monitor
+        threads are awake in different intervals.
+        """
+        self.data_sem.acquire()
+        self.statistics[-1][name] = value
+        self.data_sem.release()
+
     def terminate(self):
         """
         Instruct the Monitor to shut down

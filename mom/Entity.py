@@ -14,6 +14,9 @@
 # License along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
+import logging
+import math
+
 class EntityError(Exception):
     def __init__(self, message):
         self.message = message
@@ -31,6 +34,7 @@ class Entity:
         self.statistics = []
         self.controls = {}
         self.monitor = monitor
+        self.logger = logging.getLogger('mom.Entity')
 
     def _set_property(self, name, val):
         self.properties[name] = val
@@ -106,11 +110,42 @@ class Entity:
             total = total + row[name]
         return float(total / len(self.statistics))
 
+    def StatStdDeviation(self, name):
+        """
+        Calculate standart deviation of all values in statistic-stack.
+        If there is not such name of statistic in past snapshot, return None.
+        """
+        vals = []
+        for row in self.statistics:
+            if name in row:
+                vals.append(row[name])
+
+        if not vals:
+            return None
+
+        count = len(vals)
+        average = float(sum(vals)) / count
+        sum_pow2 = sum(map(lambda x: x**2, vals))
+        stdev = math.sqrt(1.0 / count * sum_pow2 - average ** 2)
+
+        self.logger.debug('deviation = %s, values = %s' % (stdev, vals))
+
+        return stdev
+
     def SetVar(self, name, val):
         """
         Store a named value in this Entity.
         """
         self.variables[name] = val
+
+    def UpdateStatVal(self, name, val):
+        """
+        Change value of 'name' stat. Updated value is propagated to Monitor,
+        where is stored to another tick of interval. This can be used to
+        calculate stats set of values that doesn't exists in collectors.
+        """
+        self.statistics[-1][name] = val
+        self.monitor.update_statistics_variable(name, val)
 
     def GetVmName(self):
         """
