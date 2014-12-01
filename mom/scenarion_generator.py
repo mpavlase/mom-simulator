@@ -282,57 +282,8 @@ def scenario_5vm_ugly_regular_host():
     doc = scenario_5vm_nice_regular_host.__doc__
     sim.export('scenario_5vm_nice_regular_host', comment=doc)
 
-def simulator():
-    host = Host('host', 10000)
-    num_guests = 2
-    guest = [Guest(g, 2000, 2000) for g in xrange(num_guests)]
-
-    # 0.
-    host.start(7000)
-    guest[0].stop()
-    guest[1].stop()
-
-    for i in xrange(2):
-        host.no_change()
-        guest[0].no_change()
-        guest[1].no_change()
-
-    # 3. start guest-1
-    host.no_change()
-    guest[0].start(1000)
-    guest[1].stop()
-
-    for i in xrange(3):
-        host.no_change()
-        guest[0].no_change()
-        guest[1].no_change()
-
-    # 7.
-    host.no_change()
-    guest[0].no_change()
-    guest[1].start(1000)
-
-    for i in xrange(15):
-        host.no_change()
-        guest[0].no_change()
-        guest[1].no_change()
-
-    # 11.
-    host.no_change()
-    guest[0].stop()
-    guest[1].stop()
-
-    for i in xrange(5):
-        host.no_change()
-        guest[0].no_change()
-        guest[1].no_change()
-
-    print host.export_samples()
-    for g in guest:
-        print g.export_samples()
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
-    simulator()
     #scenario_5vm_nice_regular_host()
+    scenario_5vm_ugly_regular_host()
