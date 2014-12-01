@@ -31,17 +31,17 @@ class MOM:
             self.shutdown()
         guest_manager = GuestManager(self.config, hypervisor_iface)
 
-        export_sampl_filename = self.config.get('simulator', 'export-samples')
-        live_plotter = Plot(export_sampl_filename, fields=[
-            'balloon_cur',    # guest
-            'mem_unused',     # guest
-            'mem_free',       # host
-            '_mem_used',      # host (only for overview, not for policies)
-            'mem_available',  # guest
-        ], scale=0.001)       # recalculate kB into MB
-        #live_plotter = None
-        policy_engine = PolicyEngine(self.config, hypervisor_iface, host_monitor, \
-                                     guest_manager, live_plotter)
+        export_sampl_filename = self.config.get('liveplot', 'export-samples')
+        liveplot_fields = self.config.get('liveplot', 'fields')
+        live_plotter = Plot(export_sampl_filename,
+                            fields_str=liveplot_fields,
+                            scale=0.001)       # recalculate kB into MB
+
+        policy_engine = PolicyEngine(self.config,
+                                     hypervisor_iface,
+                                     host_monitor,
+                                     guest_manager,
+                                     live_plotter)
 
         threads = { 'host_monitor': host_monitor,
                     'guest_manager': guest_manager,
@@ -114,7 +114,9 @@ class MOM:
         self.config.set('guest', 'collectors', 'GuestQemuProc, GuestMemory')
         self.config.add_section('simulator')
         self.config.set('simulator', 'source-file', 'samples.data')
-        self.config.set('simulator', 'export-samples', 'plot.json')
+        self.config.add_section('liveplot')
+        self.config.set('liveplot', 'fields', '')
+        self.config.set('liveplot', 'export-samples', 'plot.json')
 
 
         # Override defaults from the config file

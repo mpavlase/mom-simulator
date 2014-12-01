@@ -3,25 +3,24 @@ import logging
 import json
 
 class Plot(object):
-    def __init__(self, filename='plot.json', fields=[], scale=1.0):
+    def __init__(self, filename='plot.json', fields=[], scale=1.0, fields_str=''):
+        self.logger = logging.getLogger('mom.PlotLib')
         self.data = {}
-        self.fields = fields
         self.scale = scale
         self.filename = filename
         self.i = 0
-        self._setup_logger()
 
-    def _setup_logger(self):
-        self.logger = logging.getLogger('mom.PlotLib')
-        self.logger.propagate = False
-        self.logger.setLevel(logging.DEBUG)
+        self.fields = fields
+        if fields_str:
+            self._parse_fields(fields_str)
 
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        handler.setLevel(logging.DEBUG)
+        self.logger.info('Using these fields in output: %s' % self.fields)
 
-        self.logger.addHandler(handler)
+    def _parse_fields(self, fields_str):
+        for field in fields_str.split(','):
+            field = field.strip()
+            if field:
+                self.fields.append(field)
 
     def save(self):
         """
@@ -68,6 +67,16 @@ class Plot(object):
 
 def run():
     p = Plot(['balloon_cur', 'mem_free'])
+    l = logger.propagate = False
+    l.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.DEBUG)
+
+    l.addHandler(handler)
+    p.logger = l
 
     p.set_data({'host': {'mem_free': 1755836, 'mem_available': 10000000}, 'fake-vm-1': {'swap_usage': None, 'balloon_cur': 4244164, 'min_guest_free_percent': 0.201, 'min_balloon_change_percent': 0.0025, 'swap_total': None, 'max_balloon_change_percent': 0.05, 'balloon_min': 0, 'balloon_max': 5000000, 'mem_unused': 3244164}})
     sleep(1.5)
