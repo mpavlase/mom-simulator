@@ -1,0 +1,155 @@
+### Auto-Balloon ###############################################################
+
+### Constants
+# If the percentage of host free memory drops below this value
+# then we will consider the host to be under memory pressure
+(defvar pressure_threshold 0.20)
+
+# If pressure threshold drops below this level, then the pressure
+# is critical and more aggressive ballooning will be employed.
+(defvar pressure_critical 0.05)
+
+# This is the minimum percentage of free memory that an unconstrained
+# guest would like to maintain
+#(defvar min_guest_free_percent 0.20)
+
+# Don't change a guest's memory by more than this percent of total memory
+#(defvar max_balloon_change_percent 0.05)
+
+# Only ballooning operations that change the balloon by this percentage
+# of current guest memory should be undertaken to avoid overhead
+#(defvar min_balloon_change_percent 0.0025)
+
+### Helper functions
+# Check if the proposed new balloon value is a large-enough
+# change to justify a balloon operation.  This prevents us from
+# introducing overhead through lots of small ballooning operations
+(def change_big_enough (guest new_val)
+{
+    (if (> (abs (- new_val guest.balloon_cur))
+           (* guest.min_balloon_change_percent guest.balloon_cur))
+        1 0)
+})
+
+(def shrink_guest (guest)
+{
+    # Determine the degree of host memory pressure
+    (if (<= host_free_percent pressure_critical)
+        # Pressure is critical:
+        #   Force guest to swap by making free memory negative
+        (defvar guest_free_percent (+ -0.05 host_free_percent))
+        # Normal pressure situation
+        #   Scale the guest free memory back according to host pressure
+        (defvar guest_free_percent (* guest.min_guest_free_percent
+                                    (/ host_free_percent pressure_threshold))))
+
+    (debug 'shrink guest guest_free_percent  ' (guest.GetVmName) guest_free_percent)
+
+    # Given current conditions, determine the ideal guest memory size
+    (defvar guest_used_mem (- (guest.StatAvg "balloon_cur")
+                              (guest.StatAvg "mem_unused")))
+    (debug 'shrink guest balloon_cur         ' (guest.GetVmName) guest.balloon_cur)
+    (debug 'shrink guest mem_unused          ' (guest.GetVmName) guest.mem_unused)
+    (debug 'shrink guest guest_used_mem      ' (guest.GetVmName) guest_used_mem)
+    (debug 'shrink guest balloon_cur [stat]  ' (guest.GetVmName) (guest.StatAvg "balloon_cur"))
+    (debug 'shrink guest mem_unused [stat]   ' (guest.GetVmName) (guest.StatAvg "mem_unused"))
+
+    (defvar balloon_min (max guest.balloon_min (+ guest_used_mem
+                           (* guest_free_percent guest.balloon_cur))))
+    (debug 'shrink guest balloon_min         ' (guest.GetVmName) balloon_min)
+    # But do not change it too fast
+    (defvar balloon_size (* guest.balloon_cur
+                            (- 1 guest.max_balloon_change_percent)))
+    (debug 'shrink guest b_size (before adj.)' (guest.GetVmName) balloon_size)
+    (if (< balloon_size balloon_min)
+        (set balloon_size balloon_min)
+        0)
+    (debug 'shrink guest b_size (after adj.) ' (guest.GetVmName) balloon_size)
+    # Set the new target for the BalloonController.  Only set it if the
+    # value makes sense and is a large enough change to be worth it.
+    (if (and (<= balloon_size guest.balloon_cur)
+            (change_big_enough guest balloon_size)) {
+        (debug 'shrink guest, change balloon to: ' (guest.GetVmName) balloon_size)
+        (guest.Control "balloon_target" balloon_size)
+        }
+        0)
+})
+
+(def grow_guest (guest)
+{
+    # Determine the degree of host memory pressure
+    (if (<= host_free_percent pressure_critical)
+        # Pressure is critical:
+        #   Force guest to swap by making free memory negative
+        (defvar guest_free_percent (+ -0.05 host_free_percent))
+        # Normal pressure situation
+        #   Scale the guest free memory back according to host pressure
+        (defvar guest_free_percent (* guest.min_guest_free_percent
+                                    (/ host_free_percent pressure_threshold))))
+    (debug 'gro guest guest_free_percent  ' (guest.GetVmName) guest_free_percent)
+
+    # There is only work to do if the guest is ballooned
+    (if (< guest.balloon_cur guest.balloon_max) {
+        #(debug 'grow guest in progress' (guest.GetVmName))
+        # Minimally, increase so the guest has its desired free memory
+        (defvar guest_used_mem (- (guest.StatAvg "balloon_cur")
+                                  (guest.StatAvg "mem_unused")))
+        (debug 'grow guest balloon_cur    ' (guest.GetVmName) (guest.StatAvg "balloon_cur"))
+        (debug 'grow guest mem_unused     ' (guest.GetVmName) (guest.StatAvg "mem_unused"))
+        (debug 'grow guest used memory    ' (guest.GetVmName) guest_used_mem '(b_cur - mem_unused)')
+
+        (defvar balloon_min (max guest.balloon_min (+ guest_used_mem
+                               (* guest.min_guest_free_percent guest.balloon_cur))))
+        # Otherwise, increase according to the max balloon change
+        (defvar balloon_size (* guest.balloon_cur
+                                (+ 1 guest.max_balloon_change_percent)))
+
+        # Determine the new target for the BalloonController.  Only set
+        # if the value is a large enough for the change to be worth it.
+        (debug 'grow guest b_size (before adj.)' (guest.GetVmName) balloon_size)
+        (if (< balloon_size balloon_min)
+            (set balloon_size balloon_min) 0)
+        (if (> balloon_size guest.balloon_max)
+            (set balloon_size guest.balloon_max) 0)
+        (debug 'grow guest b_size (after adj.) ' (guest.GetVmName) balloon_size)
+        (if (change_big_enough guest balloon_size) {
+            (debug 'grow guest, change balloon size to: ' (guest.GetVmName) balloon_size)
+            (guest.Control "balloon_target" balloon_size)
+            } 0)
+    } 0)
+})
+
+
+### Main script
+# Methodology: The goal is to shrink all guests fairly and by an amount
+# scaled to the level of host memory pressure.  If the host is under
+# severe pressure, scale back more aggressively.  We don't yet handle
+# symptoms of over-ballooning guests or try to balloon idle guests more
+# aggressively.  When the host is not under memory pressure, slowly
+# deflate the balloons.
+
+# If the balloon is disabled, only deflate the balloon when possible
+
+(defvar host_free_percent (/ (Host.StatAvg "mem_free") Host.mem_available))
+(debug 'Host.mem_available: ' Host.mem_available ', stat.mem_free: ' (Host.StatAvg "mem_free") ', host_free_percent: ' host_free_percent)
+(if (< host_free_percent pressure_threshold) {
+    (debug 'Host IS under presure, reduce VMs memory (shrink_guest).')
+    (with Guests guest (shrink_guest guest))
+}
+{
+    (debug 'Host is NOT under presure, let VM free (grow_guest).')
+    (with Guests guest (grow_guest guest))
+}
+)
+
+#
+# Balloon minimum guaranteed memory ruleset
+#
+
+#(def guest_qos (quest)
+#{
+#    (if (< guest.balloon_cur guest.balloon_min)
+#        (guest.Control "balloon_target" guest.balloon_min) 0)
+#})
+#
+#(with Guests guest (guest_qos guest))
