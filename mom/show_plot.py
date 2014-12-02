@@ -1,4 +1,6 @@
 #! /usr/bin/env python
+
+from argparse import ArgumentParser
 import pylab as pl
 import logging
 import json
@@ -213,14 +215,27 @@ class Plot(object):
         return range_max
 
 if __name__ == '__main__':
+    parser = ArgumentParser(description='Simple utility for displaying output '
+                                        'of MoM (Memory overcommit Manager)')
+    parser.add_argument('-f', '--file', action='store', default='plot.json',
+                        dest='file', required=False,
+                        help='Input file as source data to plot. '
+                             'Default: %(default)s')
+    parser.add_argument('-i', '--interval', nargs='?', const='1',
+                        dest='interval', required=False,
+                        help='Enable auto-reload source file, interval in '
+                             'seconds. By default is disable.')
+    params = parser.parse_args()
+
+
     p = Plot()
-
-    if len(sys.argv) == 2:
-        p.set_source_data(sys.argv[1])
-
-    timer = p.figure.canvas.new_timer(interval=1000)
-    timer.add_callback(p.plot)
-    #timer.start()
-
+    p.set_source_data(params.file)
     p.plot()
+
+    if params.interval:
+        i = int(int(params.interval) * 1000)
+        timer = p.figure.canvas.new_timer(interval=i)
+        timer.add_callback(p.plot)
+        timer.start()
+
     p.show()
