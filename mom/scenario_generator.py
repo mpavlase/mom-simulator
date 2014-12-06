@@ -79,6 +79,9 @@ class GuestBase(object):
         # cut off latest comma
         return ret_str[:-1]
 
+    def get_max_memory(self):
+        return self.max_mem
+
     def add(self, amount):
         """
         Increase amount to current memory usage.
@@ -177,9 +180,18 @@ class Host(GuestBase):
         ret.extend(map(resample, self.samples))
 
         ret_str = ''
+
+        # adjust spaces to align guests samples (there is first fake sample)
+        fmt_long = '%'+str(width*2 + 1)+'s,'
         fmt = '%'+str(width)+'s,'
+
+        i = 0
         for s in ret:
-            ret_str += fmt % s
+            if i == 1:
+                ret_str += fmt_long % s
+            else:
+                ret_str += fmt % s
+            i += 1
 
         # cut off latest comma
         return ret_str[:-1]
