@@ -48,28 +48,33 @@
     # Given current conditions, determine the ideal guest memory size
     (defvar guest_used_mem (- (guest.StatAvg "balloon_cur")
                               (guest.StatAvg "mem_unused")))
-    (debug 'shrink guest balloon_cur         ' (guest.GetVmName) guest.balloon_cur)
-    (debug 'shrink guest mem_unused          ' (guest.GetVmName) guest.mem_unused)
-    (debug 'shrink guest guest_used_mem      ' (guest.GetVmName) guest_used_mem)
-    (debug 'shrink guest balloon_cur [stat]  ' (guest.GetVmName) (guest.StatAvg "balloon_cur"))
-    (debug 'shrink guest mem_unused [stat]   ' (guest.GetVmName) (guest.StatAvg "mem_unused"))
+    (guest.UpdateStatVal '_guest_used' guest_used_mem)
+    (debug (guest.GetVmName) 'shrink guest _guest_used [stat]  ' (guest.StatAvg "_guest_used"))
+    (debug (guest.GetVmName) 'shrink guest standart deviation  ' (guest.StatStdDeviation '_guest_used'))
+    (debug (guest.GetVmName) 'shrink guest balloon_cur         ' guest.balloon_cur)
+    (debug (guest.GetVmName) 'shrink guest mem_unused          ' guest.mem_unused)
+    (debug (guest.GetVmName) 'shrink guest guest_used_mem      ' guest_used_mem)
+    (debug (guest.GetVmName) 'shrink guest guest_used_mem_stdev' guest_used_mem)
+    (debug (guest.GetVmName) 'shrink guest balloon_cur [stat]  ' (guest.StatAvg "balloon_cur"))
+    (debug (guest.GetVmName) 'shrink guest mem_unused [stat]   ' (guest.StatAvg "mem_unused"))
 
     (defvar balloon_min (max guest.balloon_min (+ guest_used_mem
                            (* guest_free_percent guest.balloon_cur))))
-    (debug 'shrink guest balloon_min         ' (guest.GetVmName) balloon_min)
+    (debug (guest.GetVmName) 'shrink guest balloon_min         ' balloon_min)
     # But do not change it too fast
     (defvar balloon_size (* guest.balloon_cur
                             (- 1 guest.max_balloon_change_percent)))
-    (debug 'shrink guest b_size (before adj.)' (guest.GetVmName) balloon_size)
+
+    (debug (guest.GetVmName) 'shrink guest b_size (before adj.)' balloon_size)
     (if (< balloon_size balloon_min)
         (set balloon_size balloon_min)
         0)
-    (debug 'shrink guest b_size (after adj.) ' (guest.GetVmName) balloon_size)
+    (debug (guest.GetVmName) 'shrink guest b_size (after adj.) ' balloon_size)
     # Set the new target for the BalloonController.  Only set it if the
     # value makes sense and is a large enough change to be worth it.
     (if (and (<= balloon_size guest.balloon_cur)
             (change_big_enough guest balloon_size)) {
-        (debug 'shrink guest, change balloon to: ' (guest.GetVmName) balloon_size)
+        (debug (guest.GetVmName) '@shrink guest, change balloon to: ' balloon_size)
         (guest.Control "balloon_target" balloon_size)
         }
         0)
