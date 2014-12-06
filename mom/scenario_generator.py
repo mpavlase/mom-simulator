@@ -319,7 +319,7 @@ def scenario_1vm_big_swap_regular_host():
     host.rand_mean_as_curr()
     guest.rand_mean_as_curr()
 
-    for i in xrange(50):
+    for i in xrange(15):
         # simulate some memory activity on host
         host.random_norm(mean=None, deviation=15)
 
@@ -330,9 +330,65 @@ def scenario_1vm_big_swap_regular_host():
     #sim.export('scenario_1vm_big_swap_regular_host', comment=doc)
     sim.export(comment=doc)
 
+def scenario_5vm_big_host():
+    """
+    5 guests, 64GB host ()
+    2% host pressure treshold (= 1.28 GB)
+    """
+    sim = Simulator(64000)
+    host = sim.host
+
+    num_guests = 5
+    guests_max_mem = 6000
+    #guests_usage = 4000
+    map(lambda x: sim.add_guest(guests_max_mem,
+                                guests_max_mem),
+                                xrange(num_guests))
+
+    # Purpose of this scenario is get slightly behind percentage pressure
+    # treshold. Constant usage is counted by difference whole available memory
+    # and sum all running guests (without ballooning at that moment). It is
+    # needed to substract some aditional memory - it is amount of treshold
+    # expressed in MB.
+    host_const_usage = host.get_max_memory() \
+            - guests_max_mem * num_guests
+    #        - 1000
+    host.start(host_const_usage)
+    map(lambda guest: guest.no_change(), sim.guests)
+
+    host.no_change()
+    map(lambda guest: guest.start(2000), sim.guests)
+
+    # run phase
+    #for i in range(15):
+    #    host.no_change()
+    #    map(lambda guest: guest.no_change(), sim.guests)
+
+    # save current used memory as constant mean for upcomming Gauss random
+    sim.host.rand_mean_as_curr()
+    map(lambda x: x.rand_mean_as_curr(), sim.guests)
+
+    for i in xrange(15):
+        # simulate some memory activity on host
+        sim.host.random_norm(mean=None, deviation=15)
+
+        # simulate some memory activity on guests
+        map(lambda x: x.random_norm(mean=None, deviation=20), sim.guests)
+
+    # teardown...
+    host.no_change()
+    map(lambda guest: guest.stop(), sim.guests)
+
+    host.no_change()
+    map(lambda guest: guest.no_change(), sim.guests)
+
+    doc = scenario_5vm_big_host.__doc__
+    #sim.export('scenario_1vm_big_swap_regular_host', comment=doc)
+    sim.export(comment=doc)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
     #scenario_5vm_nice_regular_host()
     #scenario_5vm_ugly_regular_host()
-    scenario_1vm_big_swap_regular_host()
+    #scenario_1vm_big_swap_regular_host()
+    scenario_5vm_big_host()
