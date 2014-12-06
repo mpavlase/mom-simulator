@@ -107,7 +107,8 @@ class Entity:
             raise EntityError("Statistic '%s' not available" % name)
         total = 0
         for row in self.statistics:
-            total = total + row[name]
+            if name in row:
+                total = total + row[name]
         return float(total / len(self.statistics))
 
     def StatStdDeviation(self, name):
@@ -127,9 +128,6 @@ class Entity:
         average = float(sum(vals)) / count
         sum_pow2 = sum(map(lambda x: x**2, vals))
         stdev = math.sqrt(1.0 / count * sum_pow2 - average ** 2)
-
-        self.logger.debug('deviation = %s, values = %s' % (stdev, vals))
-
         return stdev
 
     def SetVar(self, name, val):
@@ -145,6 +143,7 @@ class Entity:
         calculate stats set of values that doesn't exists in collectors.
         """
         self.statistics[-1][name] = val
+        setattr(self, name, self.statistics[-1][name])
         self.monitor.update_statistics_variable(name, val)
 
     def GetVmName(self):
