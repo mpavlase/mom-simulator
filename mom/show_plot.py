@@ -27,18 +27,14 @@ def bit_formatter(size, pos):
         return '%s%s %s' % (sign, s, scale[i])
     else:
         return '0'
-    #return '_' + str(val)
 
 class Plot(object):
     def __init__(self):
         self._setup_logger()
         self.data = {}
-        #pl.ioff() # disable interactivity on plot in window
-        #pl.ion()
-        #self.logger.info('Interactive: %s', pl.isinteractive())
         self.figure = pl.figure()
         self.subplots = {}
-        self.subplots_width = 2
+        self.subplots_width = 1
         self.set_source_data('plot.json')
         self.benchmark = False
 
@@ -200,16 +196,17 @@ class Plot(object):
             y = samples.values()
 
             if len(x) > range_max:
-                range_max = len(x)
+                range_max = len(x) - 1
 
-            #print 'guest: %s, field: %s, X=%s, Y=%s' % (guest, field, x, y)
+            self.logger.debug('guest: %s, field: %s, X=%s, Y=%s' %
+                              (guest, field, x, y))
             line = fl['line']
             line.set_xdata(x)
             line.set_ydata(y)
         self.subplots[guest].relim()
         subplot = self.subplots[guest]
 
-        self.subplots[guest].set_xlim([0, max(range_x, range_max - 1)])
+        self.subplots[guest].set_xlim([0, max(range_x, range_max)])
         self.subplots[guest].autoscale_view(True, False, True)
 
         return range_max
