@@ -38,6 +38,9 @@ class Plot(object):
         self.set_source_data('plot.json')
         self.benchmark = False
 
+    def set_plot_width(self, n):
+        self.subplots_width = n
+
     def set_source_data(self, filename):
         self.filename = filename
 
@@ -100,7 +103,11 @@ class Plot(object):
         # Key each sample is loaded from json as str() but for sorting etc. we
         # need it as ordinal int().a
         y_formatter = FuncFormatter(bit_formatter)
-        for guest in data:
+        all_guests = set(data.keys())
+        guests_list = all_guests - set([HOST])
+        guests_list = sorted(guests_list)
+        guests_list.insert(0, HOST)
+        for guest in guests_list:
             self.data[guest] = {}
             sub_plot = self.figure.add_subplot(rows, cols, i)
             sub_plot.grid(True, which='both')
@@ -222,11 +229,17 @@ if __name__ == '__main__':
                         dest='interval', required=False,
                         help='Enable auto-reload source file, interval in '
                              'seconds. By default is disable.')
+    parser.add_argument('-w', '--width', required=False,
+                        dest='width', action='store',
+                        help='Width grid of subplots, default 1')
     params = parser.parse_args()
 
 
     p = Plot()
     p.set_source_data(params.file)
+    if params.width:
+        p.set_plot_width(int(params.width))
+
     p.plot()
 
     if params.interval:
