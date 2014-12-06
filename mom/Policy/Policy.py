@@ -94,6 +94,7 @@ class Policy:
                 self.logger.error("Policy error: %s" % e)
                 return False
             except Exception as e:
+                #TODO: https://docs.python.org/2/library/traceback.html#traceback.print_exception
                 self.logger.error("Unexpected error when evaluating policy: %s" % e)
                 return False
         return True
