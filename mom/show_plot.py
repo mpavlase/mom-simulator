@@ -13,17 +13,21 @@ import math
 # determine total amount of samples. Guests can be shutted of during mom run.
 HOST = 'host'
 
-def bit_formatter(size, pos):
+def bit_formatter(size, pos=None):
     sign = ''
+    base = 1000
     if size < 0:
         sign = '-'
         size = abs(size)
     scale = ('kB', 'MB', 'GB')
-    print size
-    i = int(math.floor(math.log(size, 1024)))
-    p = math.pow(1024, i)
+    if int(size) == 0:
+        return 0
+    i = int(math.floor(math.log(size, base)))
+    p = math.pow(base, i)
     s = round(size/p, 2)
     if (s > 0):
+        if s == int(s):
+            s = int(s)
         return '%s%s %s' % (sign, s, scale[i])
     else:
         return '0'
@@ -32,17 +36,23 @@ class Plot(object):
     def __init__(self):
         self._setup_logger()
         self.data = {}
-        self.figure = pl.figure()
+        #self.figure = pl.figure(figsize=(10.7, 15.5)) # (10.7, 15.5) is OK for A4
+        self.figure = pl.figure(figsize=(10.7, 15.5))
         self.subplots = {}
         self.subplots_width = 1
         self.set_source_data('plot.json')
         self.benchmark = False
+        self.scale = 1000
+        self.image_filename = False
 
     def set_plot_width(self, n):
         self.subplots_width = n
 
     def set_source_data(self, filename):
         self.filename = filename
+
+    def set_output_file(self, filename):
+        self.image_filename = filename
 
     def _setup_logger(self):
         self.logger = logging.getLogger('show_plot')
@@ -74,7 +84,11 @@ class Plot(object):
             self.logger.info('Benchmark: load and process input: %s', td)
 
         #pl.autoscale(tight=True)
+        #self.figure.tight_layout()
+        pl.subplots_adjust(left=0.1, right=0.99, top=0.98, bottom=0.04)
         self.figure.canvas.draw()
+        if self.image_filename:
+            self.figure.savefig(self.image_filename, frameon=True)
 
     def _load(self):
         try:
@@ -113,10 +127,10 @@ class Plot(object):
             sub_plot.grid(True, which='both')
             #sub_plot.xaxis.set_minor_locator(MultipleLocator(1))
             #sub_plot.xaxis.set_minor_formatter(FormatStrFormatter('%d'))
-            #sub_plot.yaxis.set_major_formatter(y_formatter)
+            sub_plot.yaxis.set_major_formatter(y_formatter)
             #sub_plot.minorticks_on()
             sub_plot.set_xlabel('No. sample [-]')
-            sub_plot.set_ylabel('Memory [MB]')
+            sub_plot.set_ylabel('Memory')
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
             i += 1
@@ -141,7 +155,7 @@ class Plot(object):
 
                 for key, val in orig.iteritems():
                     key = int(key)
-                    self.data[guest][field]['samples'][key] = val
+                    self.data[guest][field]['samples'][key] = val * self.scale
                 self.logger.warn('guest %s, field %s: %s' % (guest, field, self.data[guest][field]))
                 self.logger.info('.')
 
@@ -232,6 +246,9 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--width', required=False,
                         dest='width', action='store',
                         help='Width grid of subplots, default 1')
+    parser.add_argument('-o', '--output', dest='output', action='store',
+                        help='Export plot to file. Format is deducted from '
+                             'extension.')
     params = parser.parse_args()
 
 
@@ -239,6 +256,9 @@ if __name__ == '__main__':
     p.set_source_data(params.file)
     if params.width:
         p.set_plot_width(int(params.width))
+
+    if params.output:
+        p.set_output_file(params.output)
 
     p.plot()
 
