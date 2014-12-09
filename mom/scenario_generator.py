@@ -304,27 +304,31 @@ def scenario_1vm_big_swap_regular_host():
     """
     sim = Simulator(16000)
     host = sim.host
-    guest = sim.add_guest(4000, 4000)
+    guest = sim.add_guest(2000, 2000)
+    guest2 = sim.add_guest(2000, 2000)
 
     host.start(14200)
     guest.no_change()
+    guest2.start(500)
 
     host.no_change()
     guest.no_change()
+    guest2.no_change()
 
     host.no_change()
     guest.start(500)
+    guest2.no_change()
 
     # save current used memory as constant mean for upcomming Gauss random
     host.rand_mean_as_curr()
-    guest.rand_mean_as_curr()
+    map(lambda x: x.rand_mean_as_curr(), sim.guests)
 
     for i in xrange(15):
         # simulate some memory activity on host
         host.random_norm(mean=None, deviation=15)
 
         # simulate some memory activity on guests
-        guest.random_norm(mean=None, deviation=10)
+        map(lambda x: x.random_norm(mean=None, deviation=10), sim.guests)
 
     doc = scenario_1vm_big_swap_regular_host.__doc__
     #sim.export('scenario_1vm_big_swap_regular_host', comment=doc)
@@ -332,48 +336,83 @@ def scenario_1vm_big_swap_regular_host():
 
 def scenario_5vm_big_host():
     """
-    5 guests, 64GB host ()
-    2% host pressure treshold (= 1.28 GB)
+    5 different guests, 64GB host
+    2% host pressure treshold = 1.28 GB
+
+    Purpose of this scenario is get host slightly behind percentage pressure
+    treshold. 
     """
     sim = Simulator(64000)
     host = sim.host
 
-    num_guests = 5
-    guests_max_mem = 6000
-    #guests_usage = 4000
-    map(lambda x: sim.add_guest(guests_max_mem,
-                                guests_max_mem),
-                                xrange(num_guests))
+    # setup phase - prepare VMs, host
+    sim.add_guest(8000, 8000)
+    sim.add_guest(3000, 3000)
+    sim.add_guest(4000, 4000)
+    sim.add_guest(6000, 6000)
 
-    # Purpose of this scenario is get slightly behind percentage pressure
-    # treshold. Constant usage is counted by difference whole available memory
+    # Constant usage is counted by difference whole available memory
     # and sum all running guests (without ballooning at that moment). It is
-    # needed to substract some aditional memory - it is amount of treshold
-    # expressed in MB.
+    # needed to substract amount of real host free memory
+    host_free_mem = 1000
+    guests_used_mem = sum(map(lambda guest: guest.get_max_memory(), sim.guests))
     host_const_usage = host.get_max_memory() \
-            - guests_max_mem * num_guests
-    #        - 1000
+            - guests_used_mem \
+            - host_free_mem
+    g_last = sim.add_guest(4000, 4000)
+
     host.start(host_const_usage)
     map(lambda guest: guest.no_change(), sim.guests)
 
+    # 3..2..1..Start!
     host.no_change()
-    map(lambda guest: guest.start(2000), sim.guests)
+    g = sim.guests[:-1]
+    map(lambda guest: guest.start(2000), g)
+    g_last.no_change()
 
     # run phase
-    #for i in range(15):
-    #    host.no_change()
-    #    map(lambda guest: guest.no_change(), sim.guests)
-
     # save current used memory as constant mean for upcomming Gauss random
     sim.host.rand_mean_as_curr()
-    map(lambda x: x.rand_mean_as_curr(), sim.guests)
+    map(lambda x: x.rand_mean_as_curr(), g)
 
-    for i in xrange(15):
+    # boot up first 4 VMs
+    for i in xrange(20):
         # simulate some memory activity on host
         sim.host.random_norm(mean=None, deviation=15)
 
         # simulate some memory activity on guests
+        map(lambda x: x.random_norm(mean=None, deviation=20), g)
+        g_last.no_change()
+
+    # finally boot last one
+    sim.host.random_norm(mean=None, deviation=15)
+    map(lambda x: x.random_norm(mean=None, deviation=20), g)
+    g_last.start(2000)
+    g_last.rand_mean_as_curr()
+
+    # let work all guests till several moments
+    for i in xrange(4):
+        # simulate some memory activity on host
+        sim.host.random_norm(mean=None, deviation=15)
+
+        # simulate some memory activity on all guests
         map(lambda x: x.random_norm(mean=None, deviation=20), sim.guests)
+
+    # stop 2 VMs
+    sim.host.random_norm(mean=None, deviation=15)
+    map(lambda x: x.random_norm(mean=None, deviation=20), g[:-1])
+    g_last.stop()
+    sim.guests[-2].stop()
+
+    # see how MOM will deal with it....
+    for i in xrange(25):
+        # simulate some memory activity on host
+        sim.host.random_norm(mean=None, deviation=15)
+
+        # simulate some memory activity on guests
+        map(lambda x: x.random_norm(mean=None, deviation=20), g[:-1])
+        g_last.no_change()
+        sim.guests[-2].no_change()
 
     # teardown...
     host.no_change()
@@ -383,7 +422,7 @@ def scenario_5vm_big_host():
     map(lambda guest: guest.no_change(), sim.guests)
 
     doc = scenario_5vm_big_host.__doc__
-    #sim.export('scenario_1vm_big_swap_regular_host', comment=doc)
+    #sim.export('scenario_5vm_big_host', comment=doc)
     sim.export(comment=doc)
 
 if __name__ == '__main__':
