@@ -22,6 +22,10 @@ from textwrap import dedent
 SHUTOFF = -1
 NEWLINE = '\n'
 
+# Guests which doesn't support balloon driver will utilize whole amount
+# given memory from host. 
+WITHOUT_BALLOON_DRIVER = 'c'
+
 class GuestBase(object):
     def __init__(self, name, max_mem, mem_start=None):
         """
@@ -34,6 +38,7 @@ class GuestBase(object):
         self.max_mem = max_mem
         self.name = name
         self.samples = []
+        self.balloon_available = True
         self.logger = logging.getLogger('mom.scenario_generator')
 
         # All samples would be multiplied by this value. This should avoid
@@ -52,6 +57,9 @@ class GuestBase(object):
         """
         ret = []
         # 1. maximum available memory
+        max_mem = self.max_mem * self.scale
+        if not self.balloon_available:
+            max_mem = WITHOUT_BALLOON_DRIVER + str(max_mem)
         ret.append(self.max_mem * self.scale)
 
         # 2. 'current' size of balloon, it means amount of RAM that guest
@@ -160,6 +168,8 @@ class GuestBase(object):
 
 class Guest(GuestBase):
     pass
+    #def balloon_available(self, val=True):
+    #    self.balloon_available = val
 
 class Host(GuestBase):
     def export_samples(self, width=8):
@@ -202,8 +212,10 @@ class Simulator(object):
         self.guests = []
         random.seed(0)
 
-    def add_guest(self, mem_max, balloon_curr):
+    def add_guest(self, mem_max, balloon_curr, balloon_available=True):
         guest = Guest(len(self.guests), mem_max, balloon_curr)
+        #if balloon_available:
+        #    guest.balloon_available(balloon_available)
         self.guests.append(guest)
         return guest
 
@@ -424,6 +436,10 @@ def scenario_5vm_big_host():
     doc = scenario_5vm_big_host.__doc__
     #sim.export('scenario_5vm_big_host', comment=doc)
     sim.export(comment=doc)
+
+def scenario_2balloon_3const():
+    sim = Simulator(8000)
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
