@@ -11,14 +11,14 @@
 
 # This is the minimum percentage of free memory that an unconstrained
 # guest would like to maintain
-#(defvar min_guest_free_percent 0.20)
+(defvar min_guest_free_percent 0.20)
 
 # Don't change a guest's memory by more than this percent of total memory
-#(defvar max_balloon_change_percent 0.05)
+(defvar max_balloon_change_percent 0.05)
 
 # Only ballooning operations that change the balloon by this percentage
 # of current guest memory should be undertaken to avoid overhead
-#(defvar min_balloon_change_percent 0.0025)
+(defvar min_balloon_change_percent 0.0025)
 
 ### Helper functions
 # Check if the proposed new balloon value is a large-enough
@@ -27,7 +27,7 @@
 (def change_big_enough (guest new_val)
 {
     (if (> (abs (- new_val guest.balloon_cur))
-           (* guest.min_balloon_change_percent guest.balloon_cur))
+           (* min_balloon_change_percent guest.balloon_cur))
         1 0)
 })
 
@@ -40,7 +40,7 @@
         (defvar guest_free_percent (+ -0.05 host_free_percent))
         # Normal pressure situation
         #   Scale the guest free memory back according to host pressure
-        (defvar guest_free_percent (* guest.min_guest_free_percent
+        (defvar guest_free_percent (* min_guest_free_percent
                                     (/ host_free_percent pressure_threshold))))
 
     (debug 'shrink guest guest_free_percent  ' (guest.GetVmName) guest_free_percent)
@@ -63,7 +63,7 @@
     (debug (guest.GetVmName) 'shrink guest balloon_min         ' balloon_min)
     # But do not change it too fast
     (defvar balloon_size (* guest.balloon_cur
-                            (- 1 guest.max_balloon_change_percent)))
+                            (- 1 max_balloon_change_percent)))
 
     (debug (guest.GetVmName) 'shrink guest b_size (before adj.)' balloon_size)
     (if (< balloon_size balloon_min)
@@ -74,8 +74,8 @@
     # value makes sense and is a large enough change to be worth it.
     (if (and (<= balloon_size guest.balloon_cur)
             (change_big_enough guest balloon_size)) {
-        (debug (guest.GetVmName) '@shrink guest, change balloon to: ' balloon_size)
-        (guest.Control "balloon_target" balloon_size)
+            (debug (guest.GetVmName) '@shrink guest, change balloon to: ' balloon_size)
+      	     (guest.Control "balloon_target" balloon_size)
         }
         0)
 })
@@ -104,10 +104,10 @@
         (debug 'grow guest used memory    ' (guest.GetVmName) guest_used_mem '(b_cur - mem_unused)')
 
         (defvar balloon_min (max guest.balloon_min (+ guest_used_mem
-                               (* guest.min_guest_free_percent guest.balloon_cur))))
+                               (* min_guest_free_percent guest.balloon_cur))))
         # Otherwise, increase according to the max balloon change
         (defvar balloon_size (* guest.balloon_cur
-                                (+ 1 guest.max_balloon_change_percent)))
+                                (+ 1 max_balloon_change_percent)))
 
         # Determine the new target for the BalloonController.  Only set
         # if the value is a large enough for the change to be worth it.
@@ -120,7 +120,7 @@
         (if (change_big_enough guest balloon_size) {
             (debug 'grow guest, change balloon size to: ' (guest.GetVmName) balloon_size)
             (guest.Control "balloon_target" balloon_size)
-            } 0)
+         } 0)
     } 0)
 })
 
@@ -146,15 +146,3 @@
     (with Guests guest (grow_guest guest))
 }
 )
-
-#
-# Balloon minimum guaranteed memory ruleset
-#
-
-#(def guest_qos (quest)
-#{
-#    (if (< guest.balloon_cur guest.balloon_min)
-#        (guest.Control "balloon_target" guest.balloon_min) 0)
-#})
-#
-#(with Guests guest (guest_qos guest))
