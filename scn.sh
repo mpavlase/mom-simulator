@@ -11,6 +11,11 @@ mkdir -p $P/exports
 
 LOG=mom.log
 
+echo "Generate all scenarios..."
+pushd $P
+./scenario_generator.py
+popd
+
 # step 1 - prepare data for simulator to know location
 cp $P/scenario.${I}.csv $P/scenario.csv
 echo "Run scenario number $I"
@@ -30,8 +35,9 @@ cp scenario.csv $OUT
 cp $LOG $OUT
 
 echo -n "Export output as PNG... "
-./show_plot.py -q -f plot.json -w 2 -o $OUT/plot_${I}.png
-echo -n "EPS... "
-./show_plot.py -q -f plot.json -w 2 -o $OUT/plot_${I}.eps
+./show_plot.py -q -f plot.json -w 2 -o $OUT/plot.png
+echo "EPS"
+./show_plot.py -q -f plot.json -w 2 -o $OUT/plot.eps
+echo -n "Waiting for close plot window... "
 ./show_plot.py -f plot.json -w 2
 echo "Done."
