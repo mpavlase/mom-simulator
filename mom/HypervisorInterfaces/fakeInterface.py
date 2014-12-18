@@ -24,6 +24,10 @@ from mom.Collectors.Collector import FatalError as CollectorFatalError
 # shutdown state.
 VM_SHUTDOWN = -1
 
+# Guests which doesn't support balloon driver will utilize whole amount
+# given memory from host. 
+WITHOUT_BALLOON_DRIVER = 'c'
+
 def tis(num):
     return '{0:,}'.format(num)
 
@@ -85,7 +89,9 @@ class fakeInterface(HypervisorInterface):
                     self.logger.warn('Skipping source line %s' % line)
                     continue
 
+                self.logger.info(line)
                 samples = self._parse_csv(line)
+                self.logger.info(samples)
                 # parse maximum available host memory
                 max_mem = samples.pop(0)
 
@@ -98,12 +104,24 @@ class fakeInterface(HypervisorInterface):
                     vm_number += 1
                     continue
 
-                curr_balloon = samples.pop(0)
+                # Ballooning is enabled by default.
+                balloon_enabled = True
+
+                # First value can be number with 'c' prefix. It means, that the
+                # guest doesn't support balloning ('constant').
+                first_val = samples.pop(0)
+                if type(max_mem) == type('c123') and \
+                    max_mem[0] == WITHOUT_BALLOON_DRIVER:
+                    balloon_enabled = False
+                    max_mem = int(max_mem[1:])
+                    first_val = max_mem
+                curr_balloon = first_val
                 curr_mem_used = samples[0]
 
                 domain = {'fake-vm-' + str(vm_number): {
                         'uuid': 'uuid-' + str(vm_number),
                         'balloon_cur': curr_balloon,
+                        'balloon_enabled': balloon_enabled,
                         'balloon_min': 0,
                         'balloon_max': max_mem,
                         'mem_unused': max_mem - curr_mem_used,
@@ -122,8 +140,15 @@ class fakeInterface(HypervisorInterface):
         them into integers.
         """
         samples = re.split(',\s*', line)
-        samples = map(lambda x: int(x), samples)
-        return samples
+        ret = []
+        for s in samples:
+            try:
+                val = int(s)
+            except ValueError:
+                val = s
+
+            ret.append(val)
+        return ret
 
     def _get_current_sample(self, source):
         """
@@ -242,8 +267,12 @@ class fakeInterface(HypervisorInterface):
 
     def setVmBalloonTarget(self, uuid, target):
         dom = self._getDomainFromUUID(uuid)
-        self.logger.info('New memballoon value %s for %s' % (tis(target), dom))
-        self.domains[dom]['balloon_cur'] = target
+        if self.domains[dom]['balloon_enabled']:
+            self.logger.info('New memballoon value %s for %s' % (tis(target), dom))
+            self.domains[dom]['balloon_cur'] = target
+        else:
+            self.logger.debug('Ignoring set new balloon size %s for %s (the guest doesn\'t support balloning)' % (tis(target), dom))
+
 
     def getVmBalloonInfo(self, uuid):
         domain = self._getDomainFromUUID(uuid)
