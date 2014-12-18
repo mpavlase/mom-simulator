@@ -60,7 +60,7 @@ class GuestBase(object):
         max_mem = self.max_mem * self.scale
         if not self.balloon_available:
             max_mem = WITHOUT_BALLOON_DRIVER + str(max_mem)
-        ret.append(self.max_mem * self.scale)
+        ret.append(max_mem)
 
         # 2. 'current' size of balloon, it means amount of RAM that guest
         # currently got from hypervisor.
@@ -167,9 +167,8 @@ class GuestBase(object):
                 % (self.memory, mean, deviation))
 
 class Guest(GuestBase):
-    pass
-    #def balloon_available(self, val=True):
-    #    self.balloon_available = val
+    def balloon_disable(self):
+        self.balloon_available = False
 
 class Host(GuestBase):
     def export_samples(self, width=8):
@@ -212,10 +211,8 @@ class Simulator(object):
         self.guests = []
         random.seed(0)
 
-    def add_guest(self, mem_max, balloon_curr, balloon_available=True):
+    def add_guest(self, mem_max, balloon_curr):
         guest = Guest(len(self.guests), mem_max, balloon_curr)
-        #if balloon_available:
-        #    guest.balloon_available(balloon_available)
         self.guests.append(guest)
         return guest
 
@@ -436,14 +433,199 @@ def scenario_5vm_big_host():
     doc = scenario_5vm_big_host.__doc__
     #sim.export('scenario_5vm_big_host', comment=doc)
     sim.export(comment=doc)
+###############################################################################
+###############################################################################
+###############################################################################
+def scenario_1_host_swap():
+    sim = Simulator(32000)
+    sim.add_guest(8000, 8000)
+    sim.add_guest(4000, 4000)
+    sim.add_guest(12000, 12000)
+    #[sim.guests[i].no_change() for i in [0, 4, 5]]
+    #sim.guests[1].balloon_disable()
 
-def scenario_2balloon_3const():
-    sim = Simulator(8000)
+    # Tick!
+    sim.host.start(16000)
 
+    # Tick!
+    for i in xrange(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(6000), [0])
+    map(lambda i: sim.guests[i].no_change(), [1, 2])
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(2000), [1])
+    map(lambda i: sim.guests[i].no_change(), [0, 2])
+
+    # Tick!
+    for i in xrange(1):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(3000), [2])
+    map(lambda i: sim.guests[i].no_change(), [0, 1])
+
+    for x in range(30):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    sim.export('scenario.1.csv')
+
+def scenario_2_big_host():
+    sim = Simulator(64000)
+    sim.add_guest(12000, 12000)
+    sim.add_guest(12000, 12000)
+    sim.add_guest(12000, 12000)
+
+    # Tick!
+    sim.host.start(16000)
+
+    # Tick!
+    for i in xrange(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(5000), [0])
+    map(lambda i: sim.guests[i].no_change(), [1, 2])
+
+    # Tick!
+    for x in range(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(5000), [1])
+    map(lambda i: sim.guests[i].no_change(), [0, 2])
+
+    # Tick!
+    for x in range(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(5000), [2])
+    map(lambda i: sim.guests[i].no_change(), [0, 1])
+
+    # Tick!
+    for x in range(30):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    sim.export('scenario.2.csv')
+
+def scenario_3_w_wo_balloon():
+    sim = Simulator(24000)
+    sim.add_guest(4000, 4000)
+    sim.add_guest(4000, 4000)
+    sim.add_guest(4000, 4000)
+    sim.add_guest(4000, 4000)
+    sim.add_guest(2000, 2000)
+    sim.guests[2].balloon_disable()
+    sim.guests[3].balloon_disable()
+
+    # Tick!
+    sim.host.start(3000)
+
+    #sim.host.random_norm(mean=None, deviation=15)
+    sim.host.rand_mean_as_curr()
+
+    # Tick! - nothing
+    for i in xrange(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(2000), [0])
+    map(lambda i: sim.guests[i].start(1000), [2])
+    map(lambda i: sim.guests[i].rand_mean_as_curr(), [0, 2])
+    map(lambda i: sim.guests[i].no_change(), [1, 3, 4])
+
+    # Tick! - nothing
+    for x in range(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(1000), [4])
+    map(lambda i: sim.guests[i].rand_mean_as_curr(), [4])
+    map(lambda i: sim.guests[i].no_change(), [0, 1, 2, 3])
+
+    # Tick! - nothing
+    for x in range(2):
+        sim.host.no_change()
+        map(lambda guest: guest.no_change(), sim.guests)
+
+    # Tick!
+    sim.host.no_change()
+    map(lambda i: sim.guests[i].start(3000), [1, 3])
+    map(lambda i: sim.guests[i].rand_mean_as_curr(), [1, 3])
+    map(lambda i: sim.guests[i].no_change(), [0, 2, 4])
+
+    # Tick!
+    for x in range(30):
+        sim.host.random_norm(mean=None, deviation=15)
+        map(lambda guest: guest.random_norm(mean=None, deviation=15), sim.guests)
+
+    sim.export('scenario.3.csv')
+
+def scenario_4_continous_reboot():
+    sim = Simulator(16000)
+    sim.add_guest(3000, 3000)
+    sim.add_guest(3000, 3000)
+    sim.add_guest(3000, 3000)
+    sim.add_guest(3000, 3000)
+    sim.add_guest(3000, 3000)
+
+    # Tick!
+    sim.host.start(2000)
+
+    # each VM is described by (offset, on-length, off-length, cycle-length)
+    program = [
+        (0, 2, 3),
+        (0, 3, 4),
+        (0, 3, 4),
+        (0, 2, 3),
+        (0, 1, 2)]
+
+    # main counter
+    for i in xrange(15):
+        sim.host.no_change()
+        # iterate around all guests
+        for g in range(5):
+            offset, on, cycle = program[g]
+            index = (i + offset) % cycle
+            if index < on:
+                sim.guests[g].start(1200)
+            else:
+                sim.guests[g].stop()
+
+    sim.export('scenario.4.csv')
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
     #scenario_5vm_nice_regular_host()
     #scenario_5vm_ugly_regular_host()
     #scenario_1vm_big_swap_regular_host()
-    scenario_5vm_big_host()
+    #scenario_5vm_big_host()
+
+    scenario_1_host_swap()
+    #scenario_2_big_host()
+    #scenario_3_w_wo_balloon()
+    #scenario_4_continous_reboot()
