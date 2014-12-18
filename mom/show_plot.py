@@ -249,6 +249,11 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', dest='output', action='store',
                         help='Export plot to file. Format is deducted from '
                              'extension.')
+    parser.add_argument('-q', '--quite', dest='quite', action='store_true',
+                        default=False,
+                        help='Run in quite mode - process input data and if is'
+                             ' -o given, write image. After that immediately '
+                             'terminate (-i is ignored).')
     params = parser.parse_args()
 
 
@@ -268,4 +273,5 @@ if __name__ == '__main__':
         timer.add_callback(p.plot)
         timer.start()
 
-    p.show()
+    if not params.quite:
+        p.show()
