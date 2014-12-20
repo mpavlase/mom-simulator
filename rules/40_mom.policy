@@ -3,11 +3,17 @@
 ### Constants
 # If the percentage of host free memory drops below this value
 # then we will consider the host to be under memory pressure
-(defvar pressure_threshold 0.20)
+(defvar pressure_threshold_percent 0.20)
+
+# 20% or 2GB
+(defvar pressure_threshold 2000000)
 
 # If pressure threshold drops below this level, then the pressure
 # is critical and more aggressive ballooning will be employed.
-(defvar pressure_critical 0.05)
+(defvar pressure_critical_percent 0.05)
+
+# 5% or 500MB
+(defvar pressure_critical 500000)
 
 # This is the minimum percentage of free memory that an unconstrained
 # guest would like to maintain
@@ -31,17 +37,55 @@
         1 0)
 })
 
+(defvar host_free_percent (/ (Host.StatAvg "mem_free") Host.mem_available))
+(defvar host_free_kilobytes (Host.StatAvg "mem_free"))
+(defvar host_pressure_kilobytes (* Host.mem_available pressure_threshold_percent))
+(defvar host_critical_pressure_kilobytes (* Host.mem_available pressure_critical_percent))
+
+(def host_is_under_pressure (foo) {
+    # find out which treshold is closer (in % or kB), equivalent in C:
+    # if(treshold_kB < treshold_percent) { /* use treshold_kB */ } else { /* use treshold_percent */ }
+    (if (< pressure_threshold host_pressure_kilobytes) {
+        # We will use treshold described by kilobytes
+        (debug 'normal pressure - use kB, because ' pressure_threshold ' < ' host_pressure_kilobytes ' (% < kB)')
+        (debug 'normal pressure - use kB, ' host_free_kilobytes ' (?) ' pressure_threshold ' (host_free_kilobytes ? pressure_threshold)')
+        (if (< host_free_kilobytes pressure_threshold) {
+            1
+        } {
+            0
+        })
+    } {
+        (debug 'normal pressure - use percentage, because ' pressure_threshold ' > ' host_pressure_kilobytes ' (% > kB)')
+        (debug 'normal pressure - use percentage, ' host_free_percent ' (?) ' pressure_threshold_percent ' (host_free_percent ? pressure_threshold_percent)')
+        (if (< host_free_percent pressure_threshold_percent) 1 0)
+    })
+})
+
+(def host_is_under_critic_pressure (foo) {
+    # find out which treshold is closer (in % or kB), equivalent in C:
+    # if(treshold_kB < treshold_percent) { /* use treshold_kB */ } else { /* use treshold_percent */ }
+    (if (< pressure_critical host_critical_pressure_kilobytes) {
+        # We will use treshold described in kilobytes
+        (debug 'critical pressure - use kB')
+        (if (< host_free_kilobytes pressure_critical) 1 0)
+    } {
+        # We will use treshold described in percents
+        (debug 'critical pressure - use percentage')
+        (if (< host_free_percent pressure_critical_percent) 1 0)
+    })
+})
+
 (def shrink_guest (guest)
 {
     # Determine the degree of host memory pressure
-    (if (<= host_free_percent pressure_critical)
+    (if (host_is_under_critic_pressure 0)
         # Pressure is critical:
         #   Force guest to swap by making free memory negative
         (defvar guest_free_percent (+ -0.05 host_free_percent))
         # Normal pressure situation
         #   Scale the guest free memory back according to host pressure
         (defvar guest_free_percent (* min_guest_free_percent
-                                    (/ host_free_percent pressure_threshold))))
+                                    (/ host_free_percent pressure_threshold_percent))))
 
     (debug 'shrink guest guest_free_percent  ' (guest.GetVmName) guest_free_percent)
 
@@ -83,7 +127,7 @@
 (def grow_guest (guest)
 {
     # Determine the degree of host memory pressure
-    (if (<= host_free_percent pressure_critical)
+    (if (host_is_under_critic_pressure 0)
         # Pressure is critical:
         #   Force guest to swap by making free memory negative
         (defvar guest_free_percent (+ -0.05 host_free_percent))
@@ -91,7 +135,7 @@
         #   Scale the guest free memory back according to host pressure
         (defvar guest_free_percent (* min_guest_free_percent
                                     (/ host_free_percent pressure_threshold))))
-    (debug 'gro guest guest_free_percent  ' (guest.GetVmName) guest_free_percent)
+    (debug (guest.GetVmName) 'grow guest guest_free_percent  ' guest_free_percent)
 
     # There is only work to do if the guest is ballooned
     (if (< guest.balloon_cur guest.balloon_max) {
@@ -99,26 +143,28 @@
         # Minimally, increase so the guest has its desired free memory
         (defvar guest_used_mem (- (guest.StatAvg "balloon_cur")
                                   (guest.StatAvg "mem_unused")))
-        (debug 'grow guest balloon_cur    ' (guest.GetVmName) (guest.StatAvg "balloon_cur"))
-        (debug 'grow guest mem_unused     ' (guest.GetVmName) (guest.StatAvg "mem_unused"))
-        (debug 'grow guest used memory    ' (guest.GetVmName) guest_used_mem '(b_cur - mem_unused)')
+        (debug (guest.GetVmName) 'grow guest balloon_cur    ' (guest.StatAvg "balloon_cur"))
+        (debug (guest.GetVmName) 'grow guest mem_unused     ' (guest.StatAvg "mem_unused"))
+        (debug (guest.GetVmName) 'grow guest used memory    ' guest_used_mem '(b_cur - mem_unused)')
 
         (defvar balloon_min (max guest.balloon_min (+ guest_used_mem
                                (* min_guest_free_percent guest.balloon_cur))))
+        (debug (guest.GetVmName) 'grow guest balloon_min' balloon_min)
+        (debug (guest.GetVmName) 'grow guest b_size (before adj.)' balloon_size)
         # Otherwise, increase according to the max balloon change
         (defvar balloon_size (* guest.balloon_cur
                                 (+ 1 max_balloon_change_percent)))
 
         # Determine the new target for the BalloonController.  Only set
         # if the value is a large enough for the change to be worth it.
-        (debug 'grow guest b_size (before adj.)' (guest.GetVmName) balloon_size)
+        (debug (guest.GetVmName) 'grow guest b_size (before adj.)' balloon_size)
         (if (< balloon_size balloon_min)
             (set balloon_size balloon_min) 0)
         (if (> balloon_size guest.balloon_max)
             (set balloon_size guest.balloon_max) 0)
-        (debug 'grow guest b_size (after adj.) ' (guest.GetVmName) balloon_size)
+        (debug (guest.GetVmName) 'grow guest b_size (after adj.) ' balloon_size)
         (if (change_big_enough guest balloon_size) {
-            (debug 'grow guest, change balloon size to: ' (guest.GetVmName) balloon_size)
+            (debug (guest.GetVmName) 'grow guest, change balloon size to: ' balloon_size)
             (guest.Control "balloon_target" balloon_size)
          } 0)
     } 0)
@@ -135,9 +181,9 @@
 
 # If the balloon is disabled, only deflate the balloon when possible
 
-(defvar host_free_percent (/ (Host.StatAvg "mem_free") Host.mem_available))
 (debug 'Host.mem_available: ' Host.mem_available ', stat.mem_free: ' (Host.StatAvg "mem_free") ', host_free_percent: ' host_free_percent)
-(if (< host_free_percent pressure_threshold) {
+
+(if (host_is_under_pressure 0) {
     (debug 'Host IS under presure, reduce VMs memory (shrink_guest).')
     (with Guests guest (shrink_guest guest))
 }
