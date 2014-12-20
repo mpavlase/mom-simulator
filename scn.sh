@@ -39,5 +39,5 @@ echo -n "Export output as PNG... "
 echo "EPS"
 ./show_plot.py -q -f plot.json -w 2 -o $OUT/plot.eps
 echo -n "Waiting for close plot window... "
-./show_plot.py -f plot.json -w 2
+#./show_plot.py -f plot.json -w 2
 echo "Done."
