@@ -121,6 +121,7 @@ class Plot(object):
         guests_list = all_guests - set([HOST])
         guests_list = sorted(guests_list)
         guests_list.insert(0, HOST)
+        legend_shared = []
         for guest in guests_list:
             self.data[guest] = {}
             sub_plot = self.figure.add_subplot(rows, cols, i)
@@ -145,19 +146,32 @@ class Plot(object):
                 label = '(' + field + ')' if field[0] == '_' else field
                 self.logger.debug(label)
                 plot_line.set_label(label)
-                self.subplots[guest].legend(loc='best', fontsize='medium')
+                legend = self.subplots[guest].legend(loc='best', fontsize='xx-small', fancybox=True, ncol=len(data[guest]))
+                legend.get_frame().set_alpha(0.5)
 
                 line = {
                     'samples': {},
                     'line': plot_line,
                 }
                 self.data[guest][field] = line
+                if guest == HOST:
+                    legend_shared.append((plot_line, label))
 
                 for key, val in orig.iteritems():
                     key = int(key)
                     self.data[guest][field]['samples'][key] = val * self.scale
                 self.logger.warn('guest %s, field %s: %s' % (guest, field, self.data[guest][field]))
                 self.logger.info('.')
+
+
+
+        #self.figure.legend([l[0] for l in legend_shared],
+        #                   [l[1] for l in legend_shared], loc='lower left',
+        #                   ncol=len(legend_shared), fontsize='medium',
+        #                   fancybox=True, bbox_to_anchor=(0.0001, 0.000001))
+
+
+
 
         self.logger.info(self.data)
 
