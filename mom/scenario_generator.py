@@ -231,212 +231,9 @@ class Simulator(object):
         for g in self.guests:
             fd.write(g.export_samples() + NEWLINE)
 
-def scenario_5vm_nice_regular_host():
-    """
-    5 guests, 16GB host (3GB of that is host's own stable usage)
-    2GB per guest, small memory intensive changes (+/- 10MB)
-    All guests are starting at one moment (sligtly more difficult for MoM).
-    """
-    sim = Simulator(16000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-
-    sim.host.start(5000)
-    for guest in sim.guests:
-        guest.no_change()
-        #guest.start(1000)
-
-    #sim.host.no_change()
-    for index in xrange(len(sim.guests)):
-        sim.guests[index].start(1000)
-
-    # save current used memory as constant mean for upcomming Gauss random
-    sim.host.rand_mean_as_curr()
-    map(lambda x: x.rand_mean_as_curr(), sim.guests)
-
-    for i in xrange(25):
-        # simulate some memory activity on host
-        sim.host.random_norm(mean=None, deviation=15)
-
-        # simulate some memory activity on guests
-        map(lambda x: x.random_norm(mean=None, deviation=15), sim.guests)
-
-    doc = scenario_5vm_nice_regular_host.__doc__
-    sim.export('scenario_5vm_nice_regular_host', comment=doc)
-
-
-def scenario_5vm_ugly_regular_host():
-    """
-    5 guests, 16GB host (5GB of that is host's own stable usage)
-    2GB per guest, significant memory intensive changes (+/- 20MB)
-    All guests are starting at one moment (sligtly more difficult for MoM).
-    """
-    sim = Simulator(16000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-    sim.add_guest(2000, 2000)
-
-    sim.host.start(5000)
-    for guest in sim.guests:
-        guest.no_change()
-
-    # launch all guests at the same moment
-    sim.host.no_change()
-    map(lambda x: x.start(1000), sim.guests)
-
-    # save current used memory as constant mean for upcomming Gauss random
-    sim.host.rand_mean_as_curr()
-    map(lambda x: x.rand_mean_as_curr(), sim.guests)
-
-    for i in xrange(25):
-        # simulate some memory activity on host
-        sim.host.random_norm(mean=None, deviation=15)
-
-        # simulate some memory activity on guests
-        map(lambda x: x.random_norm(mean=None, deviation=20), sim.guests)
-
-    doc = scenario_5vm_nice_regular_host.__doc__
-    sim.export('scenario_5vm_nice_regular_host', comment=doc)
-
-
-def scenario_1vm_big_swap_regular_host():
-    """
-    1 guests, 16GB host (5GB of that is host's own stable usage)
-    4GB guest (used 500MB), small memory intensive changes (+/- 10MB)
-    On this scenation can be examined length (in samples) when is host under
-    pressure (using a lot of swap).
-    """
-    sim = Simulator(16000)
-    host = sim.host
-    guest = sim.add_guest(2000, 2000)
-    guest2 = sim.add_guest(2000, 2000)
-
-    host.start(14200)
-    guest.no_change()
-    guest2.start(500)
-
-    host.no_change()
-    guest.no_change()
-    guest2.no_change()
-
-    host.no_change()
-    guest.start(500)
-    guest2.no_change()
-
-    # save current used memory as constant mean for upcomming Gauss random
-    host.rand_mean_as_curr()
-    map(lambda x: x.rand_mean_as_curr(), sim.guests)
-
-    for i in xrange(15):
-        # simulate some memory activity on host
-        host.random_norm(mean=None, deviation=15)
-
-        # simulate some memory activity on guests
-        map(lambda x: x.random_norm(mean=None, deviation=10), sim.guests)
-
-    doc = scenario_1vm_big_swap_regular_host.__doc__
-    #sim.export('scenario_1vm_big_swap_regular_host', comment=doc)
-    sim.export(comment=doc)
-
-def scenario_5vm_big_host():
-    """
-    5 different guests, 64GB host
-    2% host pressure treshold = 1.28 GB
-
-    Purpose of this scenario is get host slightly behind percentage pressure
-    treshold. 
-    """
-    sim = Simulator(64000)
-    host = sim.host
-
-    # setup phase - prepare VMs, host
-    sim.add_guest(8000, 8000)
-    sim.add_guest(3000, 3000)
-    sim.add_guest(4000, 4000)
-    sim.add_guest(6000, 6000)
-
-    # Constant usage is counted by difference whole available memory
-    # and sum all running guests (without ballooning at that moment). It is
-    # needed to substract amount of real host free memory
-    host_free_mem = 1000
-    guests_used_mem = sum(map(lambda guest: guest.get_max_memory(), sim.guests))
-    host_const_usage = host.get_max_memory() \
-            - guests_used_mem \
-            - host_free_mem
-    g_last = sim.add_guest(4000, 4000)
-
-    host.start(host_const_usage)
-    map(lambda guest: guest.no_change(), sim.guests)
-
-    # 3..2..1..Start!
-    host.no_change()
-    g = sim.guests[:-1]
-    map(lambda guest: guest.start(2000), g)
-    g_last.no_change()
-
-    # run phase
-    # save current used memory as constant mean for upcomming Gauss random
-    sim.host.rand_mean_as_curr()
-    map(lambda x: x.rand_mean_as_curr(), g)
-
-    # boot up first 4 VMs
-    for i in xrange(20):
-        # simulate some memory activity on host
-        sim.host.random_norm(mean=None, deviation=15)
-
-        # simulate some memory activity on guests
-        map(lambda x: x.random_norm(mean=None, deviation=20), g)
-        g_last.no_change()
-
-    # finally boot last one
-    sim.host.random_norm(mean=None, deviation=15)
-    map(lambda x: x.random_norm(mean=None, deviation=20), g)
-    g_last.start(2000)
-    g_last.rand_mean_as_curr()
-
-    # let work all guests till several moments
-    for i in xrange(4):
-        # simulate some memory activity on host
-        sim.host.random_norm(mean=None, deviation=15)
-
-        # simulate some memory activity on all guests
-        map(lambda x: x.random_norm(mean=None, deviation=20), sim.guests)
-
-    # stop 2 VMs
-    sim.host.random_norm(mean=None, deviation=15)
-    map(lambda x: x.random_norm(mean=None, deviation=20), g[:-1])
-    g_last.stop()
-    sim.guests[-2].stop()
-
-    # see how MOM will deal with it....
-    for i in xrange(25):
-        # simulate some memory activity on host
-        sim.host.random_norm(mean=None, deviation=15)
-
-        # simulate some memory activity on guests
-        map(lambda x: x.random_norm(mean=None, deviation=20), g[:-1])
-        g_last.no_change()
-        sim.guests[-2].no_change()
-
-    # teardown...
-    host.no_change()
-    map(lambda guest: guest.stop(), sim.guests)
-
-    host.no_change()
-    map(lambda guest: guest.no_change(), sim.guests)
-
-    doc = scenario_5vm_big_host.__doc__
-    #sim.export('scenario_5vm_big_host', comment=doc)
-    sim.export(comment=doc)
-###############################################################################
-###############################################################################
 ###############################################################################
 def scenario_1_host_swap():
+    #sim.export('scenario_5vm_big_host', comment=doc)
     sim = Simulator(32000)
     sim.add_guest(8000, 8000)
     sim.add_guest(4000, 4000)
@@ -486,7 +283,7 @@ def scenario_1_host_swap():
     sim.host.no_change()
     sim.guests[0].random_norm(mean=None, deviation=10)
     sim.guests[1].random_norm(mean=None, deviation=10)
-    sim.guests[2].start(3000)
+    sim.guests[2].start(4500)
     sim.guests[2].rand_mean_as_curr()
 
     for x in range(30):
@@ -504,7 +301,7 @@ def scenario_2_big_host():
     sim.add_guest(12000, 12000)
 
     # Tick! - start host
-    sim.host.start(16000)
+    sim.host.start(18000)
     sim.host.rand_mean_as_curr()
 
     # Tick!
@@ -655,16 +452,16 @@ def scenario_4_continous_reboot():
     # Tick!
     sim.host.start(2000)
 
-    # each VM is described by (offset, on-length, off-length, cycle-length)
+    # each VM is described by (offset, on-length, cycle-length)
     program = [
         (0, 2, 3),
         (0, 3, 4),
-        (0, 3, 4),
-        (0, 2, 3),
+        (0, 3, 6),
+        (0, 2, 6),
         (0, 1, 2)]
 
     # main counter
-    for i in xrange(15):
+    for i in xrange(25):
         sim.host.no_change()
         # iterate around all guests
         for g in range(5):
@@ -679,10 +476,6 @@ def scenario_4_continous_reboot():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
-    #scenario_5vm_nice_regular_host()
-    #scenario_5vm_ugly_regular_host()
-    #scenario_1vm_big_swap_regular_host()
-    #scenario_5vm_big_host()
 
     scenario_1_host_swap()          # done
     scenario_2_big_host()           # done
