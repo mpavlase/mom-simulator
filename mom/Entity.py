@@ -97,8 +97,8 @@ class Entity:
         Get the most-recently recorded value of a statistic
         Returns None if no statistics are available
         """
-        if name not in self.monitor.valid_fields:
-            raise KeyError("Field '%s' is not declared in any collector." % name)
+        #if name not in self.monitor.valid_fields:
+        #    raise KeyError("Field '%s' is not declared in any collector." % name)
 
         if len(self.statistics) > 0:
             return self.statistics[-1].get(name, default)
@@ -109,8 +109,8 @@ class Entity:
         """
         Calculate the average value of a statistic using all recent values.
         """
-        if name not in self.monitor.valid_fields:
-            raise KeyError("Field '%s' is not declared in any collector." % name)
+        #if name not in self.monitor.valid_fields:
+        #    raise KeyError("Field '%s' is not declared in any collector." % name)
 
         if (len(self.statistics) == 0):
             raise EntityError("Statistic '%s' not available" % name)
