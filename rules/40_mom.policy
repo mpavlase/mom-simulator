@@ -89,7 +89,7 @@
         (defvar guest_free_percent (+ -0.05 host_free_percent))
         # Normal pressure situation
         #   Scale the guest free memory back according to host pressure
-        (defvar guest_free_percent (* guest.min_guest_free_percent
+        (defvar guest_free_percent (* min_guest_free_percent
                                     (/ host_free_percent pressure_threshold))))
     (debug 'gro guest guest_free_percent  ' (guest.GetVmName) guest_free_percent)
 
