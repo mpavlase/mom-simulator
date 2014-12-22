@@ -20,6 +20,15 @@
 # of current guest memory should be undertaken to avoid overhead
 (defvar min_balloon_change_percent 0.0025)
 
+# When guest using almost constant memory, we can shrink it much faster.
+# This constant reflect amount of memory that will be shrinked in percent.
+(defvar aggresive_balloon_change_percent 0.5)
+
+# Threshold used to recognize small memory changes on guest. It is value of
+# relative standart deviation of used memory. When guest get below this value,
+# we will shrink it much faster, exactly by aggresive_balloon_change_percent%.
+(defvar max_std_dev 0.003)
+
 ### Helper functions
 # Check if the proposed new balloon value is a large-enough
 # change to justify a balloon operation.  This prevents us from
@@ -65,6 +74,27 @@
     (defvar balloon_size (* guest.balloon_cur
                             (- 1 max_balloon_change_percent)))
 
+    # ------------------------------------------------------------------------
+    # Shrink guest faster, if it is 'nice' and not using memory much.
+    (defvar std_deviation (guest.StatStdDeviation '_guest_used'))
+
+    (debug (guest.GetVmName) '@shrink guest std_deviation       ' std_deviation)
+    # Do something only if we have enough samples to calculate stdev, otherwise
+    # -1 is returned.
+    (if (> std_deviation 0) {
+            (defvar avg_guest_used (guest.StatAvg '_guest_used'))
+            (defvar rel_std_deviation (/ std_deviation avg_guest_used))
+            (debug (guest.GetVmName) '@shrink guest rel_std_deviation   ' rel_std_deviation)
+            (if (< rel_std_deviation max_std_dev) {
+                (set balloon_size (* guest.balloon_cur aggresive_balloon_change_percent))
+                (debug (guest.GetVmName) '@shrink guest chang ball_size faster, because guest is nice. New size: ' balloon_size)
+                }
+                0
+            )
+        }
+        0
+    )
+
     (debug (guest.GetVmName) 'shrink guest b_size (before adj.)' balloon_size)
     (if (< balloon_size balloon_min)
         (set balloon_size balloon_min)
@@ -74,8 +104,8 @@
     # value makes sense and is a large enough change to be worth it.
     (if (and (<= balloon_size guest.balloon_cur)
             (change_big_enough guest balloon_size)) {
-            (debug (guest.GetVmName) '@shrink guest, change balloon to: ' balloon_size)
-      	     (guest.Control "balloon_target" balloon_size)
+        (debug (guest.GetVmName) '@shrink guest, change balloon to: ' balloon_size)
+        (guest.Control "balloon_target" balloon_size)
         }
         0)
 })
