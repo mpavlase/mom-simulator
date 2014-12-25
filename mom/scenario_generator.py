@@ -347,10 +347,19 @@ def scenario_2_big_host():
     sim.guests[2].rand_mean_as_curr()
 
     # Tick!
-    for x in range(30):
+    guest1_start = 27
+    for x in range(40):
         sim.host.random_norm(mean=None, deviation=10)
         sim.guests[0].random_norm(mean=None, deviation=10)
-        sim.guests[1].add(10)
+        #if sim.guest[1].get != SHUTOFF:
+        #    guest1_latest = 
+        if 15 < x < guest1_start:
+            sim.guests[1].stop()
+        elif x == guest1_start:
+            sim.guests[1].start(5000)
+        else:
+            sim.guests[1].add(10)
+
         if x % 5 == 0:
             sim.guests[2].add(40)
             sim.guests[2].rand_mean_as_curr()
@@ -450,15 +459,16 @@ def scenario_4_continous_reboot():
     sim.add_guest(3000, 3000)
 
     # Tick!
-    sim.host.start(2000)
+    sim.host.start(3000)
+    map(lambda guest: guest.no_change(), sim.guests)
 
     # each VM is described by (offset, on-length, cycle-length)
     program = [
-        (0, 2, 3),
-        (0, 3, 4),
-        (0, 3, 6),
-        (0, 2, 6),
-        (0, 1, 2)]
+        (1, 2, 4),
+        (0, 5, 6),
+        (1, 3, 6),
+        (0, 4, 6),
+        (0, 2, 3)]
 
     # main counter
     for i in xrange(25):
@@ -474,6 +484,34 @@ def scenario_4_continous_reboot():
 
     sim.export('scenario.4.csv')
 
+def pokus():
+    sim = Simulator(10000)
+    guest = sim.add_guest(5000, 5000)
+
+    # Tick!
+    sim.host.start(7000)
+    guest.no_change()
+
+    sim.host.no_change()
+    guest.start(1200)
+
+    for x in range(2):
+        sim.host.no_change()
+        guest.no_change()
+
+    for x in range(3):
+        sim.host.no_change()
+        guest.stop()
+
+    sim.host.no_change()
+    guest.start(1200)
+
+    for x in range(2):
+        sim.host.no_change()
+        guest.no_change()
+
+    sim.export('scenario.4.csv')
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
 
@@ -481,3 +519,4 @@ if __name__ == '__main__':
     scenario_2_big_host()           # done
     scenario_3_w_wo_balloon()
     scenario_4_continous_reboot()
+    #pokus()
