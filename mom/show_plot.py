@@ -243,9 +243,9 @@ class Plot(object):
         subplot.set_xlim([0, max(range_x, range_max)])
         subplot.autoscale_view(True, False, True)
         ylim = subplot.set_ylim()
-        print "pred {0}".format(ylim)
+        #print "pred {0}".format(ylim)
         ylim = (ylim[0] * 0.9000000, ylim[1] * 1.2000000)
-        print "po   {0}".format(ylim)
+        #print "po   {0}".format(ylim)
         subplot.set_ylim(ylim)
 
         return range_max
