@@ -146,7 +146,7 @@ class Plot(object):
                 label = '(' + field + ')' if field[0] == '_' else field
                 self.logger.debug(label)
                 plot_line.set_label(label)
-                legend = self.subplots[guest].legend(loc='best', fontsize='xx-small', fancybox=True, ncol=len(data[guest]))
+                legend = self.subplots[guest].legend(loc='best', fontsize='small', fancybox=True, ncol=len(data[guest]))
                 legend.get_frame().set_alpha(0.5)
 
                 line = {
@@ -238,11 +238,15 @@ class Plot(object):
             line = fl['line']
             line.set_xdata(x)
             line.set_ydata(y)
-        self.subplots[guest].relim()
         subplot = self.subplots[guest]
-
-        self.subplots[guest].set_xlim([0, max(range_x, range_max)])
-        self.subplots[guest].autoscale_view(True, False, True)
+        subplot.relim()
+        subplot.set_xlim([0, max(range_x, range_max)])
+        subplot.autoscale_view(True, False, True)
+        ylim = subplot.set_ylim()
+        print "pred {0}".format(ylim)
+        ylim = (ylim[0] * 0.9000000, ylim[1] * 1.2000000)
+        print "po   {0}".format(ylim)
+        subplot.set_ylim(ylim)
 
         return range_max
 
