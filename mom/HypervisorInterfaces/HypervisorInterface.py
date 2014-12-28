@@ -71,6 +71,17 @@ class HypervisorInterface:
         """
         pass
 
+    def getXMLmetadata(self, uuid, xmlns):
+        """
+        Read VM metadata according to XML namespace (uri)
+        """
+        pass
+
+    def setXMLmetadata(self, uuid, xml, app, xmlns):
+        """
+        Store XML metadata to VM with given XML namespace (uri) and app name.
+        """
+        pass
 
 class HypervisorInterfaceError(Exception):
     pass

@@ -248,20 +248,28 @@ class libvirtInterface(HypervisorInterface):
         self.logger.info('BALOON INFO: %s' % ret)
         return ret
 
-    def getXMLQoSMetadata(self, uuid):
+    def getXMLmetadata(self, uuid, xmlns):
         """XML definition of domain can contain also <metadata> element.
         it is used as storage of QoS settings."""
         domain = self._getDomainFromUUID(uuid)
-        try:
-            metadata = domain.metadata(
-                libvirt.VIR_DOMAIN_METADATA_ELEMENT, _METADATA_VM_TUNE_URI, 0)
-        except libvirt.libvirtError as e:
-            if e.get_error_code() != libvirt.VIR_ERR_NO_DOMAIN_METADATA:
-                self.logger.error("Failed to retrieve QoS metadata")
-                return False
 
+        metadata = domain.metadata(
+            libvirt.VIR_DOMAIN_METADATA_ELEMENT, xmlns, 0)
         metadataXML = _domParseStr(metadata)
         return metadataXML
+        #except libvirt.libvirtError as e:
+        #    if e.get_error_code() != libvirt.VIR_ERR_NO_DOMAIN_METADATA:
+        #        self.logger.error("Failed to retrieve QoS metadata")
+        #        return False
+
+
+    def setXMLmetadata(self, uuid, xml, app, xmlns):
+        domain = self._getDomainFromUUID(uuid)
+        domain.setMetadata(
+            libvirt.VIR_DOMAIN_METADATA_ELEMENT,
+            xml, app,
+            xmlns, 0)
+
 
     @staticmethod
     def getXMLElementValue(xml, element):
@@ -280,7 +288,7 @@ class libvirtInterface(HypervisorInterface):
         }
         ret = {}
         domain = self._getDomainFromUUID(uuid)
-        metadata_xml = self.getXMLQoSMetadata(uuid)
+        metadata_xml = self.getXMLmetadata(uuid, _METADATA_VM_TUNE_URI)
 
         # Get the user selection for vcpuLimit from the metadata
         key = 'vcpu_user_limit'
@@ -324,7 +332,7 @@ class libvirtInterface(HypervisorInterface):
 
     def getIoTunables(self, uuid):
         domain = self._getDomainFromUUID(uuid)
-        xml = self.getXMLQoSMetadata(uuid)
+        xml = self.getXMLmetadata(uuid, _METADATA_VM_TUNE_URI)
         ret = []
 
         device_list = xml.getElementsByTagName('device')
