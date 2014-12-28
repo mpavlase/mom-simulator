@@ -7,6 +7,10 @@ P=mom
 I=$1
 shift
 
+WIDTH=${1:-2}
+shift
+#echo "I = $I width=$WIDTH"
+
 mkdir -p $P/exports
 
 LOG=mom.log
@@ -35,9 +39,9 @@ cp scenario.csv $OUT
 cp $LOG $OUT
 
 echo -n "Export output as PNG... "
-./show_plot.py -q -f plot.json -w 2 -o $OUT/plot.png
+./show_plot.py -q -f plot.json -w $WIDTH -o $OUT/plot.png
 echo "EPS"
-./show_plot.py -q -f plot.json -w 2 -o $OUT/plot.eps
+./show_plot.py -q -f plot.json -w $WIDTH -o $OUT/plot.eps
 echo -n "Waiting for close plot window... "
 #./show_plot.py -f plot.json -w 2
 echo "Done."
