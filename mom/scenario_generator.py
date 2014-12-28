@@ -286,7 +286,7 @@ def scenario_1_host_swap():
     sim.guests[2].start(4500)
     sim.guests[2].rand_mean_as_curr()
 
-    for x in range(30):
+    for x in range(22):
         sim.host.random_norm(mean=None, deviation=10)
         sim.guests[0].random_norm(mean=None, deviation=10)
         sim.guests[1].random_norm(mean=None, deviation=10)
