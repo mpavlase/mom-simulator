@@ -114,6 +114,7 @@ class Plot(object):
         elif count == 1:
             cols = 1
 
+        self.rows = rows
         # Key each sample is loaded from json as str() but for sorting etc. we
         # need it as ordinal int().a
         y_formatter = FuncFormatter(bit_formatter)
@@ -130,7 +131,7 @@ class Plot(object):
             #sub_plot.xaxis.set_minor_formatter(FormatStrFormatter('%d'))
             sub_plot.yaxis.set_major_formatter(y_formatter)
             #sub_plot.minorticks_on()
-            sub_plot.set_xlabel('No. sample [-]')
+            sub_plot.set_xlabel('Number of sample [-]')
             sub_plot.set_ylabel('Memory')
             sub_plot.set_title(guest)
             self.subplots[guest] = sub_plot
@@ -146,7 +147,7 @@ class Plot(object):
                 label = '(' + field + ')' if field[0] == '_' else field
                 self.logger.debug(label)
                 plot_line.set_label(label)
-                legend = self.subplots[guest].legend(loc='best', fontsize='small', fancybox=True, ncol=len(data[guest]))
+                legend = self.subplots[guest].legend(loc='best', fontsize='x-small', fancybox=True, ncol=len(data[guest]))
                 legend.get_frame().set_alpha(0.5)
 
                 line = {
@@ -244,7 +245,12 @@ class Plot(object):
         subplot.autoscale_view(True, False, True)
         ylim = subplot.set_ylim()
         #print "pred {0}".format(ylim)
-        ylim = (ylim[0] * 0.9000000, ylim[1] * 1.2000000)
+        if self.rows == 2:
+            ygap = 1.1
+        else:
+            ygap = 1.15
+
+        ylim = (ylim[0] * 0.8000000, ylim[1] * ygap)
         #print "po   {0}".format(ylim)
         subplot.set_ylim(ylim)
 

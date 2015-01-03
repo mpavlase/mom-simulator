@@ -26,7 +26,7 @@ echo "Run scenario number $I"
 
 # step 2 - run MoM
 echo "MoM simulator is in progress..."
-time ./momd -c mom.fake.conf 2> $P/$LOG
+#time ./momd -c mom.fake.conf 2> $P/$LOG
 
 echo "Backup all data to own separate folder"
 
@@ -36,7 +36,7 @@ rm -rf $OUT
 mkdir -p $OUT
 cp plot.json $OUT
 cp scenario.csv $OUT
-cp $LOG $OUT
+#cp $LOG $OUT
 
 echo -n "Export output as PNG... "
 ./show_plot.py -q -f plot.json -w $WIDTH -o $OUT/plot.png
