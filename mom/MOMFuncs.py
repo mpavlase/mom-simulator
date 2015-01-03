@@ -84,9 +84,3 @@ class MOMFuncs(object):
     def getActiveGuests(self):
         self.logger.info("getActiveGuests()")
         return self.threads['guest_manager'].rpc_get_active_guests()
-
-    @exported
-    def refreshConstFields(self):
-        self.logger.info("refreshConstFieldsByName()")
-        self.threads['guest_manager'].rpc_refresh_guests_consts()
-        return True
