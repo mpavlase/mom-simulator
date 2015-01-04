@@ -114,7 +114,7 @@ class Plot(object):
         elif count == 1:
             cols = 1
 
-        self.rows = rows
+        self.cols = cols
         # Key each sample is loaded from json as str() but for sorting etc. we
         # need it as ordinal int().a
         y_formatter = FuncFormatter(bit_formatter)
@@ -244,14 +244,17 @@ class Plot(object):
         subplot.set_xlim([0, max(range_x, range_max)])
         subplot.autoscale_view(True, False, True)
         ylim = subplot.set_ylim()
-        #print "pred {0}".format(ylim)
-        if self.rows == 2:
-            ygap = 1.1
-        else:
-            ygap = 1.15
 
-        ylim = (ylim[0] * 0.8000000, ylim[1] * ygap)
-        #print "po   {0}".format(ylim)
+        yrange = ylim[1] - ylim[0]
+        ybottom = 0.07
+
+        if self.cols == 2:
+            ylegend = 0.1
+        elif self.cols == 1:
+            ylegend = 0.15 #25
+        print ylegend
+
+        ylim = (ylim[0] - yrange * ybottom, ylim[1] + yrange * ylegend)
         subplot.set_ylim(ylim)
 
         return range_max
