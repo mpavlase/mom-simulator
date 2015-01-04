@@ -1,4 +1,19 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
+# Memory Overcommitment Manager Simulator
+# Copyright (c) 2014 Martin Pavlasek, Red Hat Corporation
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 from argparse import ArgumentParser
 import pylab as pl
@@ -36,8 +51,7 @@ class Plot(object):
     def __init__(self):
         self._setup_logger()
         self.data = {}
-        #self.figure = pl.figure(figsize=(10.7, 15.5)) # (10.7, 15.5) is OK for A4
-        self.figure = pl.figure(figsize=(10.7, 15.5))
+        self.figure = pl.figure(figsize=(10.7, 15.5)) # fit to A4 paper
         self.subplots = {}
         self.subplots_width = 1
         self.set_source_data('plot.json')
@@ -46,6 +60,9 @@ class Plot(object):
         self.image_filename = False
 
     def set_plot_width(self, n):
+        """
+        Set number of sublots in one row
+        """
         self.subplots_width = n
 
     def set_source_data(self, filename):
@@ -55,10 +72,12 @@ class Plot(object):
         self.image_filename = filename
 
     def _setup_logger(self):
+        """
+        Prepare all logger customization
+        """
         self.logger = logging.getLogger('show_plot')
         self.logger.propagate = False
         self.logger.setLevel(logging.ERROR)
-        #self.logger.setLevel(logging.DEBUG)
 
         handler = logging.StreamHandler()
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -68,6 +87,9 @@ class Plot(object):
         self.logger.addHandler(handler)
 
     def enable_benchmark(self):
+        """
+        This will enable displaying time consumed to process input data of plot
+        """
         self.benchmark = True
 
     def plot(self):
@@ -96,13 +118,14 @@ class Plot(object):
                 new_data = json.load(f)
                 self.subplots = {}
                 self._preprocess_data(new_data)
-                #self.logger.info(self.data)
         except Exception, e:
             self.logger.error(e)
 
     def _preprocess_data(self, data):
-        # Setup layout of all subplots
-        # this is index of subplot in figure (window)
+        """
+        Setup layout of all subplots, this is index of subplot in figure
+        (window)
+        """
         i = 1
         self.data = {}
         count = len(data)
@@ -163,22 +186,12 @@ class Plot(object):
                     self.data[guest][field]['samples'][key] = val * self.scale
                 self.logger.warn('guest %s, field %s: %s' % (guest, field, self.data[guest][field]))
                 self.logger.info('.')
-
-
-
-        #self.figure.legend([l[0] for l in legend_shared],
-        #                   [l[1] for l in legend_shared], loc='lower left',
-        #                   ncol=len(legend_shared), fontsize='medium',
-        #                   fancybox=True, bbox_to_anchor=(0.0001, 0.000001))
-
-
-
-
         self.logger.info(self.data)
 
     def show(self):
         """
-        This method blocks exection until is plot window closed.
+        This method blocks exection until is plot window closed. Usable for
+        snadalone application.
         """
         pl.show()
 
@@ -200,6 +213,9 @@ class Plot(object):
             samples[index] = None
 
     def _refresh_plot(self):
+        """
+        Insert new set of data into existing plot.
+        """
         all_guests = set(self.data.keys())
         guests = all_guests - set([HOST])
 
@@ -252,7 +268,6 @@ class Plot(object):
             ylegend = 0.1
         elif self.cols == 1:
             ylegend = 0.15 #25
-        print ylegend
 
         ylim = (ylim[0] - yrange * ybottom, ylim[1] + yrange * ylegend)
         subplot.set_ylim(ylim)
@@ -295,6 +310,7 @@ if __name__ == '__main__':
     p.plot()
 
     if params.interval:
+        # interval for timer should be im milliseconds (ms)
         i = int(int(params.interval) * 1000)
         timer = p.figure.canvas.new_timer(interval=i)
         timer.add_callback(p.plot)

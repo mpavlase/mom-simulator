@@ -1,4 +1,4 @@
-# Memory Overcommitment Manager
+# Memory Overcommitment Manager Simulator
 # Copyright (c) 2014 Martin Pavlasek, Red Hat Corporation
 #
 # This program is free software; you can redistribute it and/or modify
@@ -65,7 +65,8 @@ class fakeInterface(HypervisorInterface):
             - amount of whole host memory in kB,
             - amount used memory by host OS
         Each next upcomming line describe utilization memory inside VM:
-            - maximum available memory that VM can allocate,
+            - maximum available memory that VM can allocate (if there is 'c' like 'c4000000', guest will not be ballooned),
+            - always ignored value
             - each next value is current memory usage by VM
 
         But there is one special value for VMs:
@@ -128,8 +129,6 @@ class fakeInterface(HypervisorInterface):
                         'mem_usage_samples': samples,
                     }
                 }
-                #self.logger.error(domain)
-                #self.logger.error(curr_mem_used)
                 self.domains.update(domain)
                 vm_number += 1
 
@@ -170,7 +169,6 @@ class fakeInterface(HypervisorInterface):
         return curr_sample
 
     def _getDomainFromUUID(self, uuid):
-        #self.logger.info('uuid = %s' % uuid)
         ret = filter(lambda x: self.domains[x]['uuid'] == uuid, self.domains)
         return ret[0]
 
@@ -193,20 +191,6 @@ class fakeInterface(HypervisorInterface):
                 if self.sample_index >= 0 and self._get_current_sample(vm['mem_usage_samples']) != VM_SHUTDOWN]
         used_by_vm = sum(used)
 
-        #used_by_vm = 0
-        #for guest, vm in self.domains.iteritems():
-        #    sample = self._get_current_sample(vm['mem_usage_samples'])
-        #    self.logger.debug('getHostMemoryStats guest %s has current mem_usage %s' % (guest, sample))
-
-        #    if sample != VM_SHUTDOWN:
-        #        self.logger.debug('getHostMemoryStats guest %s is alive.' % (guest, ))
-        #        used_by_vm += sample
-
-        #for guest, vm in self.domains.iteritems():
-        #    cur = vm['balloon_cur']
-        #    self.logger.error('Guest %s, balloon_cur = %s' % (guest, cur))
-
-        #used = [vm['balloon_cur'] for vm in self.domains]
         used_by_host = self._get_current_sample(self.host_samples)
 
         used = used_by_vm + used_by_host
@@ -226,7 +210,6 @@ class fakeInterface(HypervisorInterface):
 
         for k, v in self.domains.iteritems():
             try:
-                #if v['mem_usage_samples'][self.sample_index] != VM_SHUTDOWN:
                 if self._get_current_sample(v['mem_usage_samples']) != VM_SHUTDOWN:
                     ret.append(k)
             except IndexError, e:
@@ -253,7 +236,6 @@ class fakeInterface(HypervisorInterface):
         info = self.domains[domain]
         self.logger.info(info)
         ret = {}
-        #info = self._domainGetMemoryStats(domain)
         curr_mem_used = self._get_current_sample(info['mem_usage_samples'])
         info['_mem_used']= curr_mem_used
 
@@ -304,11 +286,6 @@ class fakeInterface(HypervisorInterface):
 
     def qemuAgentCommand(self, uuid, command, timeout=10):
         return None
-        #import libvirt_qemu
-        #dom = self._getDomainFromUUID(uuid)
-        #if dom is None:
-        #    return None
-        #return libvirt_qemu.qemuAgentCommand(dom, command, timeout, 0)
 
 def instance(config):
     return fakeInterface(config)

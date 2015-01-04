@@ -1,3 +1,6 @@
+# Memory Overcommitment Manager Simulator
+# Copyright (C) 2014 Martin Pavlasek, Red Hat inc.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
@@ -49,9 +52,8 @@ class GuestConstantsOptional(Collector):
 
     def _get_metadata(self, uuid, xmlns):
         metadata = self.hypervisor_iface.getXMLmetadata(uuid, xmlns)
-        metadataXML = _domParseStr(metadata)
 
-        return metadataXML
+        return metadata
 
     def collect(self):
         ret_fields = {}
@@ -61,6 +63,9 @@ class GuestConstantsOptional(Collector):
             #self.logger.error(dir(e))
             self.logger.error(e.message)
             return {}
+
+        plan = self.hypervisor_iface.getXMLElementValue(metadata_xml, 'plan')
+        self.logger.debug(plan)
 
         for key in self.getOptionalFields():
             try:

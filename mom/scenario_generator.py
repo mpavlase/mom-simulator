@@ -1,18 +1,21 @@
 #!/usr/bin/env python
+# Memory Overcommitment Manager Simulator
+# Copyright (c) 2014 Martin Pavlasek, Red Hat Corporation
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 # Generator sample data for MoM simulator
-
-#def _setup_logger(self):
-#    self.logger = logging.getLogger('mom.PlotLib')
-#    self.logger.propagate = False
-#    self.logger.setLevel(logging.DEBUG)
-#
-#    handler = logging.StreamHandler()
-#    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-#    handler.setFormatter(formatter)
-#    handler.setLevel(logging.DEBUG)
-#
-#    self.logger.addHandler(handler)
 
 import logging
 import sys
@@ -484,39 +487,10 @@ def scenario_4_continous_reboot():
 
     sim.export('scenario.4.csv')
 
-def pokus():
-    sim = Simulator(10000)
-    guest = sim.add_guest(5000, 5000)
-
-    # Tick!
-    sim.host.start(7000)
-    guest.no_change()
-
-    sim.host.no_change()
-    guest.start(1200)
-
-    for x in range(2):
-        sim.host.no_change()
-        guest.no_change()
-
-    for x in range(3):
-        sim.host.no_change()
-        guest.stop()
-
-    sim.host.no_change()
-    guest.start(1200)
-
-    for x in range(2):
-        sim.host.no_change()
-        guest.no_change()
-
-    sim.export('scenario.4.csv')
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.WARN)
 
-    scenario_1_host_swap()          # done
-    scenario_2_big_host()           # done
+    scenario_1_host_swap()
+    scenario_2_big_host()
     scenario_3_w_wo_balloon()
     scenario_4_continous_reboot()
-    #pokus()
