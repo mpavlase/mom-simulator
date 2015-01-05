@@ -24,6 +24,10 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FuncFormatter
 import time
 import math
 
+# Special thanks to author this article, that helps me a lot during development
+# this script:
+#     https://hardsoftlucid.wordpress.com/various-stuff/realtime-plotting/
+
 # Special name of guest that actually mean host (hypervisor). It was used to
 # determine total amount of samples. Guests can be shutted of during mom run.
 HOST = 'host'
